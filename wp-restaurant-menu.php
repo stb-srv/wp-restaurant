@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.0.2');
+define('WP_RESTAURANT_MENU_VERSION', '1.0.3');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -121,6 +121,20 @@ function wpr_add_settings_page() {
 }
 add_action('admin_menu', 'wpr_add_settings_page');
 
+function wpr_add_import_export_page() {
+    add_submenu_page(
+        'edit.php?post_type=wpr_menu_item',
+        'Import / Export',
+        '📊 Import / Export',
+        'manage_options',
+        'wpr-import-export',
+        'wpr_render_import_export_page'
+    );
+}
+add_action('admin_menu', 'wpr_add_import_export_page');
+
+require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wpr-import-export.php';
+
 function wpr_render_settings_page() {
     if (isset($_POST['wpr_save_settings']) && check_admin_referer('wpr_settings_save', 'wpr_settings_nonce')) {
         $settings = array(
@@ -221,6 +235,10 @@ function wpr_render_settings_page() {
     <?php
 }
 
+function wpr_render_import_export_page() {
+    WPR_Import_Export::render_page();
+}
+
 function wpr_format_price($price) {
     if (empty($price)) return '';
     $settings = get_option('wpr_settings', array('currency_symbol' => '€', 'currency_position' => 'after'));
@@ -248,7 +266,7 @@ function wpr_render_meta_box($post) {
                 <label><strong>Gericht-Nummer:</strong></label><br>
                 <input type="text" name="wpr_dish_number" value="<?php echo esc_attr($dish_number); ?>" style="width: 100%;" placeholder="z.B. 12 oder A5">
                 <span style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
-                    Optional: Eindeutige Nummer für dieses Gericht (z.B. 1, 12, A5, G1)
+                    Optional: Eindeutige Nummer für dieses Gericht
                 </span>
             </div>
             
@@ -264,9 +282,6 @@ function wpr_render_meta_box($post) {
         <p>
             <label><strong>Allergene:</strong></label><br>
             <input type="text" name="wpr_allergens" value="<?php echo esc_attr($allergens); ?>" style="width: 100%; max-width: 500px;" placeholder="z.B. A, C, G, L">
-            <span style="color: #666; font-size: 0.9em;">
-                Durch Komma getrennt
-            </span>
         </p>
         
         <div style="display: flex; gap: 15px; margin-top: 15px;">
