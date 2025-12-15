@@ -149,32 +149,52 @@
     flex-shrink: 0;
 }
 
-/* Allergen Badges */
-.wpr-allergens-badges {
+/* Badge Styles */
+.wpr-meta-badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
 }
 
-.wpr-allergen-badge {
+.wpr-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    background: #fef3c7;
-    color: #92400e;
-    border-radius: 16px;
-    font-size: 0.75rem;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
     font-weight: 600;
-    border: 1px solid #fde68a;
-    cursor: help;
     transition: all 0.2s;
 }
 
-.wpr-allergen-badge:hover {
+.wpr-badge-vegan {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+}
+
+.wpr-badge-vegetarian {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.wpr-badge-allergen {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    cursor: help;
+}
+
+.wpr-badge-allergen:hover {
     background: #fde68a;
     transform: translateY(-1px);
+}
+
+.wpr-allergen-icon {
+    font-size: 1.1em;
+    line-height: 1;
 }
 
 /* Search Bar */
@@ -452,25 +472,6 @@
     padding-top: 10px;
     border-top: 1px solid #f0f0f0;
     margin-top: 8px;
-}
-
-.wpr-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.wpr-badge-vegan {
-    background: #dcfce7;
-    color: #15803d;
-}
-
-.wpr-badge-vegetarian {
-    background: #fef3c7;
-    color: #92400e;
 }
 
 .wpr-no-items {

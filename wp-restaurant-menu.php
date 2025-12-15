@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.2.0');
+define('WP_RESTAURANT_MENU_VERSION', '1.2.1');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -34,11 +34,28 @@ function wpr_activate() {
             'show_search' => 'yes',
             'group_by_category' => 'yes',
         ));
+    } else {
+        // Update existing settings to include new option
+        $settings = get_option('wpr_settings');
+        if (!isset($settings['group_by_category'])) {
+            $settings['group_by_category'] = 'yes';
+            update_option('wpr_settings', $settings);
+        }
     }
     
     add_option('wpr_version', WP_RESTAURANT_MENU_VERSION);
 }
 register_activation_hook(__FILE__, 'wpr_activate');
+
+// Beim Plugin-Load das Setting hinzufügen falls es fehlt
+function wpr_check_settings() {
+    $settings = get_option('wpr_settings');
+    if ($settings && !isset($settings['group_by_category'])) {
+        $settings['group_by_category'] = 'yes';
+        update_option('wpr_settings', $settings);
+    }
+}
+add_action('plugins_loaded', 'wpr_check_settings');
 
 function wpr_deactivate() {
     flush_rewrite_rules();
@@ -448,7 +465,7 @@ function wpr_menu_shortcode($atts) {
     $show_images = $settings['show_images'] === 'yes';
     $image_position = $settings['image_position'];
     $show_search = $settings['show_search'] === 'yes';
-    $group_by_category = $settings['group_by_category'] === 'yes';
+    $group_by_category = isset($settings['group_by_category']) ? $settings['group_by_category'] === 'yes' : true;
     $columns = max(1, min(3, intval($atts['columns'])));
     
     // Hole alle Kategorien für die Suche
@@ -691,26 +708,26 @@ function wpr_render_single_item($item, $show_images, $image_position) {
             
             <?php if ($vegan || $vegetarian || !empty($allergens)) : ?>
                 <div class="wpr-menu-item-meta">
-                    <?php if ($vegan) : ?>
-                        <span class="wpr-badge wpr-badge-vegan">🌿 Vegan</span>
-                    <?php elseif ($vegetarian) : ?>
-                        <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
-                    <?php endif; ?>
-                    
-                    <?php if (!empty($allergens) && !is_wp_error($allergens)) : ?>
-                        <div class="wpr-allergens-badges">
+                    <div class="wpr-meta-badges">
+                        <?php if ($vegan) : ?>
+                            <span class="wpr-badge wpr-badge-vegan">🌿 Vegan</span>
+                        <?php elseif ($vegetarian) : ?>
+                            <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($allergens) && !is_wp_error($allergens)) : ?>
                             <?php foreach ($allergens as $allergen) : 
                                 $icon = get_term_meta($allergen->term_id, 'icon', true);
                             ?>
-                                <span class="wpr-allergen-badge" title="<?php echo esc_attr($allergen->name); ?>">
+                                <span class="wpr-badge wpr-badge-allergen" title="<?php echo esc_attr($allergen->name); ?>">
                                     <?php if ($icon) : ?>
-                                        <?php echo esc_html($icon); ?>
+                                        <span class="wpr-allergen-icon"><?php echo esc_html($icon); ?></span>
                                     <?php endif; ?>
                                     <?php echo esc_html($allergen->name); ?>
                                 </span>
                             <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
