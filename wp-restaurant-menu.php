@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.0.1');
+define('WP_RESTAURANT_MENU_VERSION', '1.0.2');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -206,7 +206,6 @@ function wpr_render_settings_page() {
                                 <option value="yes" <?php selected($settings['show_search'], 'yes'); ?>>Ja, Suche aktivieren</option>
                                 <option value="no" <?php selected($settings['show_search'], 'no'); ?>>Nein, keine Suche</option>
                             </select>
-                            <p class="description">Aktiviert eine Live-Suchleiste über der Speisekarte, mit der Besucher nach Gerichten suchen können.</p>
                         </td>
                     </tr>
                 </table>
@@ -235,6 +234,8 @@ add_action('add_meta_boxes', 'wpr_add_meta_boxes');
 
 function wpr_render_meta_box($post) {
     wp_nonce_field('wpr_save_meta', 'wpr_meta_nonce');
+    
+    $dish_number = get_post_meta($post->ID, '_wpr_dish_number', true);
     $price = get_post_meta($post->ID, '_wpr_price', true);
     $allergens = get_post_meta($post->ID, '_wpr_allergens', true);
     $vegan = get_post_meta($post->ID, '_wpr_vegan', true);
@@ -242,27 +243,43 @@ function wpr_render_meta_box($post) {
     $settings = get_option('wpr_settings', array('currency_symbol' => '€'));
     ?>
     <div style="padding: 10px;">
-        <p>
-            <label><strong>Preis:</strong></label><br>
-            <input type="text" name="wpr_price" value="<?php echo esc_attr($price); ?>" style="width: 100%; max-width: 300px;" placeholder="z.B. 12,50">
-            <span style="color: #666; font-size: 0.9em;">Nur die Zahl eingeben. Währung (<?php echo esc_html($settings['currency_symbol']); ?>) wird automatisch hinzugefügt.</span>
-        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px;">
+            <div>
+                <label><strong>Gericht-Nummer:</strong></label><br>
+                <input type="text" name="wpr_dish_number" value="<?php echo esc_attr($dish_number); ?>" style="width: 100%;" placeholder="z.B. 12 oder A5">
+                <span style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
+                    Optional: Eindeutige Nummer für dieses Gericht (z.B. 1, 12, A5, G1)
+                </span>
+            </div>
+            
+            <div>
+                <label><strong>Preis:</strong></label><br>
+                <input type="text" name="wpr_price" value="<?php echo esc_attr($price); ?>" style="width: 100%;" placeholder="z.B. 12,50">
+                <span style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
+                    Nur die Zahl. Währung (<?php echo esc_html($settings['currency_symbol']); ?>) wird automatisch hinzugefügt.
+                </span>
+            </div>
+        </div>
+        
         <p>
             <label><strong>Allergene:</strong></label><br>
-            <input type="text" name="wpr_allergens" value="<?php echo esc_attr($allergens); ?>" style="width: 100%; max-width: 300px;" placeholder="z.B. A, C, G">
+            <input type="text" name="wpr_allergens" value="<?php echo esc_attr($allergens); ?>" style="width: 100%; max-width: 500px;" placeholder="z.B. A, C, G, L">
+            <span style="color: #666; font-size: 0.9em;">
+                Durch Komma getrennt
+            </span>
         </p>
-        <p>
-            <label style="display: inline-flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+        
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+            <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #f9f9f9; border-radius: 6px; cursor: pointer;">
                 <input type="checkbox" name="wpr_vegetarian" value="1" <?php checked($vegetarian, '1'); ?>>
                 <span>🌱 Vegetarisch</span>
             </label>
-        </p>
-        <p>
-            <label style="display: inline-flex; align-items: center; gap: 8px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+            
+            <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #f9f9f9; border-radius: 6px; cursor: pointer;">
                 <input type="checkbox" name="wpr_vegan" value="1" <?php checked($vegan, '1'); ?>>
                 <span>🌿 Vegan</span>
             </label>
-        </p>
+        </div>
     </div>
     <?php
 }
@@ -272,8 +289,15 @@ function wpr_save_meta($post_id) {
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
     if (!current_user_can('edit_post', $post_id)) return;
     
-    if (isset($_POST['wpr_price'])) update_post_meta($post_id, '_wpr_price', sanitize_text_field($_POST['wpr_price']));
-    if (isset($_POST['wpr_allergens'])) update_post_meta($post_id, '_wpr_allergens', sanitize_text_field($_POST['wpr_allergens']));
+    if (isset($_POST['wpr_dish_number'])) {
+        update_post_meta($post_id, '_wpr_dish_number', sanitize_text_field($_POST['wpr_dish_number']));
+    }
+    if (isset($_POST['wpr_price'])) {
+        update_post_meta($post_id, '_wpr_price', sanitize_text_field($_POST['wpr_price']));
+    }
+    if (isset($_POST['wpr_allergens'])) {
+        update_post_meta($post_id, '_wpr_allergens', sanitize_text_field($_POST['wpr_allergens']));
+    }
     update_post_meta($post_id, '_wpr_vegetarian', isset($_POST['wpr_vegetarian']) ? '1' : '0');
     update_post_meta($post_id, '_wpr_vegan', isset($_POST['wpr_vegan']) ? '1' : '0');
 }
@@ -316,7 +340,6 @@ function wpr_menu_shortcode($atts) {
     $show_search = $settings['show_search'] === 'yes';
     $columns = max(1, min(3, intval($atts['columns'])));
     
-    // Hole alle Kategorien für Filter
     $categories = array();
     if (!empty($atts['menu'])) {
         $categories = get_terms(array(
@@ -335,24 +358,38 @@ function wpr_menu_shortcode($atts) {
                         type="text" 
                         class="wpr-search-input" 
                         placeholder="🔍 Suche nach Gerichten..." 
-                        aria-label="Gerichte durchsuchen"
+                        readonly
                     />
-                    <button class="wpr-search-clear" style="display: none;" aria-label="Suche zurücksetzen">✕</button>
                 </div>
-                
-                <?php if (!empty($categories) && !is_wp_error($categories)) : ?>
-                    <div class="wpr-category-filter">
-                        <button class="wpr-filter-btn active" data-category="all">Alle</button>
-                        <?php foreach ($categories as $cat) : ?>
-                            <button class="wpr-filter-btn" data-category="<?php echo esc_attr($cat->slug); ?>">
-                                <?php echo esc_html($cat->name); ?>
-                            </button>
-                        <?php endforeach; ?>
+            </div>
+            
+            <div class="wpr-search-overlay">
+                <div class="wpr-search-overlay-content">
+                    <div class="wpr-overlay-search-wrapper">
+                        <div class="wpr-overlay-search-header">
+                            <input 
+                                type="text" 
+                                class="wpr-overlay-search-input" 
+                                placeholder="Suche nach Gerichten..." 
+                            />
+                            <button class="wpr-search-close">✕</button>
+                        </div>
+                        
+                        <?php if (!empty($categories) && !is_wp_error($categories)) : ?>
+                            <div class="wpr-category-filter">
+                                <button class="wpr-filter-btn active" data-category="all">Alle</button>
+                                <?php foreach ($categories as $cat) : ?>
+                                    <button class="wpr-filter-btn" data-category="<?php echo esc_attr($cat->slug); ?>">
+                                        <?php echo esc_html($cat->name); ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <span class="wpr-results-count"></span>
                     </div>
-                <?php endif; ?>
-                
-                <div class="wpr-search-results" style="display: none;">
-                    <span class="wpr-results-count"></span>
+                    
+                    <div class="wpr-search-results-grid"></div>
                 </div>
             </div>
         <?php endif; ?>
@@ -360,6 +397,7 @@ function wpr_menu_shortcode($atts) {
         <div class="wpr-menu-grid wpr-columns-<?php echo esc_attr($columns); ?>">
             <?php while ($query->have_posts()) : $query->the_post(); ?>
                 <?php
+                    $dish_number = get_post_meta(get_the_ID(), '_wpr_dish_number', true);
                     $price = get_post_meta(get_the_ID(), '_wpr_price', true);
                     $allergens = get_post_meta(get_the_ID(), '_wpr_allergens', true);
                     $vegan = get_post_meta(get_the_ID(), '_wpr_vegan', true);
@@ -370,17 +408,26 @@ function wpr_menu_shortcode($atts) {
                 ?>
                 <div class="wpr-menu-item <?php echo $image_position === 'left' && $has_image ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && $has_image ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
                      data-title="<?php echo esc_attr(strtolower(get_the_title())); ?>" 
-                     data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags(get_the_content()))); ?>">
+                     data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags(get_the_content()))); ?>" 
+                     data-number="<?php echo esc_attr($dish_number); ?>">
                     
                     <?php if ($show_images && $has_image) : ?>
                         <div class="wpr-menu-item-image">
+                            <?php if ($dish_number) : ?>
+                                <div class="wpr-dish-number-badge"><?php echo esc_html($dish_number); ?></div>
+                            <?php endif; ?>
                             <?php the_post_thumbnail('medium'); ?>
                         </div>
                     <?php endif; ?>
                     
                     <div class="wpr-menu-item-content">
                         <div class="wpr-menu-item-header">
-                            <h3 class="wpr-menu-item-title"><?php the_title(); ?></h3>
+                            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                                <?php if ($dish_number && (!$show_images || !$has_image)) : ?>
+                                    <span class="wpr-dish-number-inline"><?php echo esc_html($dish_number); ?></span>
+                                <?php endif; ?>
+                                <h3 class="wpr-menu-item-title"><?php the_title(); ?></h3>
+                            </div>
                             <?php if ($price) : ?>
                                 <span class="wpr-menu-item-price"><?php echo esc_html(wpr_format_price($price)); ?></span>
                             <?php endif; ?>

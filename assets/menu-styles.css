@@ -6,6 +6,38 @@
     margin: 30px 0;
 }
 
+/* Dish Number Badge on Image */
+.wpr-dish-number-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(217, 119, 6, 0.95);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+    backdrop-filter: blur(4px);
+}
+
+/* Dish Number Inline (wenn kein Bild) */
+.wpr-dish-number-inline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    background: #d97706;
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
 /* Kompakte Such-Trigger-Box */
 .wpr-search-bar {
     background: #fff;
@@ -66,7 +98,6 @@
     padding: 40px 20px;
 }
 
-/* Große Suchleiste im Overlay */
 .wpr-overlay-search-wrapper {
     position: sticky;
     top: 20px;
@@ -131,7 +162,6 @@
     transform: rotate(90deg);
 }
 
-/* Kategorie-Filter im Overlay */
 .wpr-category-filter {
     display: flex;
     flex-wrap: wrap;
@@ -162,7 +192,6 @@
     box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
 }
 
-/* Ergebnis-Zähler */
 .wpr-results-count {
     display: block;
     color: rgba(255, 255, 255, 0.7);
@@ -170,7 +199,6 @@
     font-weight: 500;
 }
 
-/* Ergebnis-Grid im Overlay */
 .wpr-search-results-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -181,24 +209,20 @@
     .wpr-search-results-grid {
         grid-template-columns: 1fr;
     }
-    
     .wpr-overlay-search-input {
         font-size: 18px;
         padding: 14px 18px;
     }
-    
     .wpr-search-close {
         width: 44px;
         height: 44px;
         font-size: 20px;
     }
-    
     .wpr-overlay-search-wrapper {
         padding: 20px;
     }
 }
 
-/* Keine Ergebnisse */
 .wpr-no-results {
     text-align: center;
     padding: 60px 20px;
@@ -216,7 +240,7 @@
     color: rgba(255, 255, 255, 0.5);
 }
 
-/* Menu Grid (normale Ansicht) */
+/* Menu Grid */
 .wpr-menu-grid {
     display: grid;
     gap: 24px;
@@ -250,7 +274,6 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-/* Im Overlay dunkles Theme */
 .wpr-search-overlay .wpr-menu-item {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
@@ -285,6 +308,7 @@
     height: 200px;
     overflow: hidden;
     background: #f5f5f5;
+    position: relative;
 }
 
 .wpr-menu-item.wpr-has-image-top .wpr-menu-item-image img {
@@ -309,6 +333,7 @@
     min-height: 160px;
     overflow: hidden;
     background: #f5f5f5;
+    position: relative;
 }
 
 .wpr-menu-item.wpr-has-image-left .wpr-menu-item-image img {
