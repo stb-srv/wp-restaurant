@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.1.0');
+define('WP_RESTAURANT_MENU_VERSION', '1.2.0');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -32,6 +32,7 @@ function wpr_activate() {
             'show_images' => 'yes',
             'image_position' => 'left',
             'show_search' => 'yes',
+            'group_by_category' => 'yes',
         ));
     }
     
@@ -114,14 +115,14 @@ function wpr_create_default_allergens() {
         'B' => array('name' => 'B - Krebstiere', 'icon' => '🦀'),
         'C' => array('name' => 'C - Eier', 'icon' => '🥚'),
         'D' => array('name' => 'D - Fisch', 'icon' => '🐟'),
-        'E' => array('name' => 'E - Erdнüsse', 'icon' => '🥜'),
+        'E' => array('name' => 'E - Erdnüsse', 'icon' => '🥜'),
         'F' => array('name' => 'F - Soja', 'icon' => '🌱'),
         'G' => array('name' => 'G - Milch/Laktose', 'icon' => '🥛'),
-        'H' => array('name' => 'H - Schalenфrüchte', 'icon' => '🌰'),
+        'H' => array('name' => 'H - Schalenfrüchte', 'icon' => '🌰'),
         'L' => array('name' => 'L - Sellerie', 'icon' => '🥬'),
         'M' => array('name' => 'M - Senf', 'icon' => '🍯'),
         'N' => array('name' => 'N - Sesamsamen', 'icon' => '🌾'),
-        'O' => array('name' => 'O - Schwefeldioxid', 'icon' => '🦪'),
+        'O' => array('name' => 'O - Schwefeldioxid', 'icon' => '🧪'),
         'P' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
         'R' => array('name' => 'R - Weichtiere', 'icon' => '🦐'),
     );
@@ -187,13 +188,6 @@ function wpr_allergen_meta_box($post) {
                     </label>
                 <?php endforeach; ?>
             </div>
-            
-            <div style="margin-top: 15px; padding: 12px; background: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 4px;">
-                <p style="margin: 0; color: #0369a1; font-size: 13px;">
-                    <strong>💡 Hinweis:</strong> Die gewählten Allergene werden automatisch als Badges beim Gericht angezeigt.
-                    Du kannst weitere Allergene unter <a href="<?php echo admin_url('edit-tags.php?taxonomy=wpr_allergen&post_type=wpr_menu_item'); ?>" style="color: #0369a1;">Allergene verwalten</a> anlegen.
-                </p>
-            </div>
         <?php endif; ?>
     </div>
     <?php
@@ -211,6 +205,14 @@ function wpr_enqueue_styles() {
         wp_enqueue_script(
             'wpr-menu-search',
             WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/menu-search.js',
+            array(),
+            WP_RESTAURANT_MENU_VERSION,
+            true
+        );
+        
+        wp_enqueue_script(
+            'wpr-menu-accordion',
+            WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/menu-accordion.js',
             array(),
             WP_RESTAURANT_MENU_VERSION,
             true
@@ -251,6 +253,7 @@ function wpr_render_settings_page() {
             'show_images' => sanitize_text_field($_POST['show_images']),
             'image_position' => sanitize_text_field($_POST['image_position']),
             'show_search' => sanitize_text_field($_POST['show_search']),
+            'group_by_category' => sanitize_text_field($_POST['group_by_category']),
         );
         update_option('wpr_settings', $settings);
         echo '<div class="notice notice-success"><p><strong>Einstellungen gespeichert!</strong></p></div>';
@@ -262,6 +265,7 @@ function wpr_render_settings_page() {
         'show_images' => 'yes',
         'image_position' => 'left',
         'show_search' => 'yes',
+        'group_by_category' => 'yes',
     ));
     ?>
     <div class="wrap">
@@ -319,7 +323,7 @@ function wpr_render_settings_page() {
                     </tr>
                 </table>
                 
-                <h2>Such-Einstellungen</h2>
+                <h2>Anzeige-Einstellungen</h2>
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="show_search">Suchfunktion anzeigen</label></th>
@@ -328,6 +332,16 @@ function wpr_render_settings_page() {
                                 <option value="yes" <?php selected($settings['show_search'], 'yes'); ?>>Ja, Suche aktivieren</option>
                                 <option value="no" <?php selected($settings['show_search'], 'no'); ?>>Nein, keine Suche</option>
                             </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="group_by_category">Nach Kategorien gruppieren</label></th>
+                        <td>
+                            <select name="group_by_category" id="group_by_category" style="min-width: 200px;">
+                                <option value="yes" <?php selected($settings['group_by_category'], 'yes'); ?>>Ja, Accordion-Ansicht</option>
+                                <option value="no" <?php selected($settings['group_by_category'], 'no'); ?>>Nein, alle zusammen</option>
+                            </select>
+                            <p class="description">Aktiviert aufklappbare Kategorien für eine übersichtliche Menüdarstellung.</p>
                         </td>
                     </tr>
                 </table>
@@ -424,43 +438,24 @@ function wpr_menu_shortcode($atts) {
         'columns' => '1',
     ), $atts);
     
-    $args = array(
-        'post_type' => 'wpr_menu_item',
-        'posts_per_page' => -1,
-        'orderby' => 'title',
-        'order' => 'ASC',
-    );
-    
-    $tax_query = array();
-    if (!empty($atts['menu'])) {
-        $tax_query[] = array('taxonomy' => 'wpr_menu_list', 'field' => 'slug', 'terms' => $atts['menu']);
-    }
-    if (!empty($atts['category'])) {
-        $tax_query[] = array('taxonomy' => 'wpr_category', 'field' => 'slug', 'terms' => $atts['category']);
-    }
-    if (!empty($tax_query)) $args['tax_query'] = $tax_query;
-    
-    $query = new WP_Query($args);
-    if (!$query->have_posts()) return '<p class="wpr-no-items">Keine Gerichte gefunden.</p>';
-    
     $settings = get_option('wpr_settings', array(
         'show_images' => 'yes',
         'image_position' => 'left',
         'show_search' => 'yes',
+        'group_by_category' => 'yes',
     ));
     
     $show_images = $settings['show_images'] === 'yes';
     $image_position = $settings['image_position'];
     $show_search = $settings['show_search'] === 'yes';
+    $group_by_category = $settings['group_by_category'] === 'yes';
     $columns = max(1, min(3, intval($atts['columns'])));
     
-    $categories = array();
-    if (!empty($atts['menu'])) {
-        $categories = get_terms(array(
-            'taxonomy' => 'wpr_category',
-            'hide_empty' => true,
-        ));
-    }
+    // Hole alle Kategorien für die Suche
+    $all_categories = get_terms(array(
+        'taxonomy' => 'wpr_category',
+        'hide_empty' => true,
+    ));
     
     ob_start();
     ?>
@@ -489,10 +484,10 @@ function wpr_menu_shortcode($atts) {
                             <button class="wpr-search-close">✕</button>
                         </div>
                         
-                        <?php if (!empty($categories) && !is_wp_error($categories)) : ?>
+                        <?php if (!empty($all_categories) && !is_wp_error($all_categories)) : ?>
                             <div class="wpr-category-filter">
                                 <button class="wpr-filter-btn active" data-category="all">Alle</button>
-                                <?php foreach ($categories as $cat) : ?>
+                                <?php foreach ($all_categories as $cat) : ?>
                                     <button class="wpr-filter-btn" data-category="<?php echo esc_attr($cat->slug); ?>">
                                         <?php echo esc_html($cat->name); ?>
                                     </button>
@@ -508,82 +503,220 @@ function wpr_menu_shortcode($atts) {
             </div>
         <?php endif; ?>
         
-        <div class="wpr-menu-grid wpr-columns-<?php echo esc_attr($columns); ?>">
-            <?php while ($query->have_posts()) : $query->the_post(); ?>
-                <?php
-                    $dish_number = get_post_meta(get_the_ID(), '_wpr_dish_number', true);
-                    $price = get_post_meta(get_the_ID(), '_wpr_price', true);
-                    $allergens = wp_get_post_terms(get_the_ID(), 'wpr_allergen');
-                    $vegan = get_post_meta(get_the_ID(), '_wpr_vegan', true);
-                    $vegetarian = get_post_meta(get_the_ID(), '_wpr_vegetarian', true);
-                    $has_image = has_post_thumbnail();
-                    $item_categories = wp_get_post_terms(get_the_ID(), 'wpr_category', array('fields' => 'slugs'));
-                    $cat_classes = is_array($item_categories) ? implode(' ', array_map(function($c) { return 'wpr-cat-' . $c; }, $item_categories)) : '';
-                ?>
-                <div class="wpr-menu-item <?php echo $image_position === 'left' && $has_image ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && $has_image ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
-                     data-title="<?php echo esc_attr(strtolower(get_the_title())); ?>" 
-                     data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags(get_the_content()))); ?>" 
-                     data-number="<?php echo esc_attr($dish_number); ?>">
-                    
-                    <?php if ($show_images && $has_image) : ?>
-                        <div class="wpr-menu-item-image">
-                            <?php if ($dish_number) : ?>
-                                <div class="wpr-dish-number-badge"><?php echo esc_html($dish_number); ?></div>
-                            <?php endif; ?>
-                            <?php the_post_thumbnail('medium'); ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="wpr-menu-item-content">
-                        <div class="wpr-menu-item-header">
-                            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                <?php if ($dish_number && (!$show_images || !$has_image)) : ?>
-                                    <span class="wpr-dish-number-inline"><?php echo esc_html($dish_number); ?></span>
-                                <?php endif; ?>
-                                <h3 class="wpr-menu-item-title"><?php the_title(); ?></h3>
-                            </div>
-                            <?php if ($price) : ?>
-                                <span class="wpr-menu-item-price"><?php echo esc_html(wpr_format_price($price)); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <?php if (get_the_content()) : ?>
-                            <div class="wpr-menu-item-description">
-                                <?php the_content(); ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if ($vegan || $vegetarian || !empty($allergens)) : ?>
-                            <div class="wpr-menu-item-meta">
-                                <?php if ($vegan) : ?>
-                                    <span class="wpr-badge wpr-badge-vegan">🌿 Vegan</span>
-                                <?php elseif ($vegetarian) : ?>
-                                    <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
-                                <?php endif; ?>
-                                
-                                <?php if (!empty($allergens) && !is_wp_error($allergens)) : ?>
-                                    <div class="wpr-allergens-badges">
-                                        <?php foreach ($allergens as $allergen) : 
-                                            $icon = get_term_meta($allergen->term_id, 'icon', true);
-                                        ?>
-                                            <span class="wpr-allergen-badge" title="<?php echo esc_attr($allergen->name); ?>">
-                                                <?php if ($icon) : ?>
-                                                    <?php echo esc_html($icon); ?>
-                                                <?php endif; ?>
-                                                <?php echo esc_html($allergen->name); ?>
-                                            </span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
+        <?php if ($group_by_category) : ?>
+            <?php echo wpr_render_accordion_menu($atts, $show_images, $image_position); ?>
+        <?php else : ?>
+            <?php echo wpr_render_grid_menu($atts, $show_images, $image_position, $columns); ?>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+function wpr_render_accordion_menu($atts, $show_images, $image_position) {
+    $args = array(
+        'post_type' => 'wpr_menu_item',
+        'posts_per_page' => -1,
+        'orderby' => 'title',
+        'order' => 'ASC',
+    );
+    
+    $tax_query = array();
+    if (!empty($atts['menu'])) {
+        $tax_query[] = array('taxonomy' => 'wpr_menu_list', 'field' => 'slug', 'terms' => $atts['menu']);
+    }
+    if (!empty($atts['category'])) {
+        $tax_query[] = array('taxonomy' => 'wpr_category', 'field' => 'slug', 'terms' => $atts['category']);
+    }
+    if (!empty($tax_query)) $args['tax_query'] = $tax_query;
+    
+    $all_items = get_posts($args);
+    
+    if (empty($all_items)) {
+        return '<p class="wpr-no-items">Keine Gerichte gefunden.</p>';
+    }
+    
+    // Gruppiere Gerichte nach Kategorien
+    $categories = get_terms(array(
+        'taxonomy' => 'wpr_category',
+        'hide_empty' => true,
+    ));
+    
+    if (empty($categories) || is_wp_error($categories)) {
+        return wpr_render_grid_menu($atts, $show_images, $image_position, 1);
+    }
+    
+    $items_by_category = array();
+    $uncategorized = array();
+    
+    foreach ($all_items as $item) {
+        $item_cats = wp_get_post_terms($item->ID, 'wpr_category');
+        if (empty($item_cats) || is_wp_error($item_cats)) {
+            $uncategorized[] = $item;
+        } else {
+            foreach ($item_cats as $cat) {
+                if (!isset($items_by_category[$cat->term_id])) {
+                    $items_by_category[$cat->term_id] = array(
+                        'term' => $cat,
+                        'items' => array()
+                    );
+                }
+                $items_by_category[$cat->term_id]['items'][] = $item;
+            }
+        }
+    }
+    
+    ob_start();
+    ?>
+    <div class="wpr-accordion-menu">
+        <?php foreach ($items_by_category as $cat_id => $data) : ?>
+            <div class="wpr-accordion-section">
+                <button class="wpr-accordion-header" data-category-id="<?php echo esc_attr($cat_id); ?>">
+                    <span class="wpr-accordion-title"><?php echo esc_html($data['term']->name); ?></span>
+                    <span class="wpr-accordion-count"><?php echo count($data['items']); ?> Gerichte</span>
+                    <span class="wpr-accordion-icon">▼</span>
+                </button>
+                
+                <div class="wpr-accordion-content">
+                    <div class="wpr-accordion-grid">
+                        <?php foreach ($data['items'] as $item) : ?>
+                            <?php echo wpr_render_single_item($item, $show_images, $image_position); ?>
+                        <?php endforeach; ?>
                     </div>
                 </div>
-            <?php endwhile; ?>
-        </div>
+            </div>
+        <?php endforeach; ?>
+        
+        <?php if (!empty($uncategorized)) : ?>
+            <div class="wpr-accordion-section">
+                <button class="wpr-accordion-header" data-category-id="uncategorized">
+                    <span class="wpr-accordion-title">Weitere Gerichte</span>
+                    <span class="wpr-accordion-count"><?php echo count($uncategorized); ?> Gerichte</span>
+                    <span class="wpr-accordion-icon">▼</span>
+                </button>
+                
+                <div class="wpr-accordion-content">
+                    <div class="wpr-accordion-grid">
+                        <?php foreach ($uncategorized as $item) : ?>
+                            <?php echo wpr_render_single_item($item, $show_images, $image_position); ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+function wpr_render_grid_menu($atts, $show_images, $image_position, $columns) {
+    $args = array(
+        'post_type' => 'wpr_menu_item',
+        'posts_per_page' => -1,
+        'orderby' => 'title',
+        'order' => 'ASC',
+    );
+    
+    $tax_query = array();
+    if (!empty($atts['menu'])) {
+        $tax_query[] = array('taxonomy' => 'wpr_menu_list', 'field' => 'slug', 'terms' => $atts['menu']);
+    }
+    if (!empty($atts['category'])) {
+        $tax_query[] = array('taxonomy' => 'wpr_category', 'field' => 'slug', 'terms' => $atts['category']);
+    }
+    if (!empty($tax_query)) $args['tax_query'] = $tax_query;
+    
+    $query = new WP_Query($args);
+    
+    if (!$query->have_posts()) {
+        return '<p class="wpr-no-items">Keine Gerichte gefunden.</p>';
+    }
+    
+    ob_start();
+    ?>
+    <div class="wpr-menu-grid wpr-columns-<?php echo esc_attr($columns); ?>">
+        <?php while ($query->have_posts()) : $query->the_post(); ?>
+            <?php echo wpr_render_single_item(get_post(), $show_images, $image_position); ?>
+        <?php endwhile; ?>
     </div>
     <?php
     wp_reset_postdata();
     return ob_get_clean();
 }
+
+function wpr_render_single_item($item, $show_images, $image_position) {
+    $dish_number = get_post_meta($item->ID, '_wpr_dish_number', true);
+    $price = get_post_meta($item->ID, '_wpr_price', true);
+    $allergens = wp_get_post_terms($item->ID, 'wpr_allergen');
+    $vegan = get_post_meta($item->ID, '_wpr_vegan', true);
+    $vegetarian = get_post_meta($item->ID, '_wpr_vegetarian', true);
+    $has_image = has_post_thumbnail($item->ID);
+    $item_categories = wp_get_post_terms($item->ID, 'wpr_category', array('fields' => 'slugs'));
+    $cat_classes = is_array($item_categories) ? implode(' ', array_map(function($c) { return 'wpr-cat-' . $c; }, $item_categories)) : '';
+    
+    ob_start();
+    ?>
+    <div class="wpr-menu-item <?php echo $image_position === 'left' && $has_image ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && $has_image ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
+         data-title="<?php echo esc_attr(strtolower($item->post_title)); ?>" 
+         data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags($item->post_content))); ?>" 
+         data-number="<?php echo esc_attr($dish_number); ?>">
+        
+        <?php if ($show_images && $has_image) : ?>
+            <div class="wpr-menu-item-image">
+                <?php if ($dish_number) : ?>
+                    <div class="wpr-dish-number-badge"><?php echo esc_html($dish_number); ?></div>
+                <?php endif; ?>
+                <?php echo get_the_post_thumbnail($item->ID, 'medium'); ?>
+            </div>
+        <?php endif; ?>
+        
+        <div class="wpr-menu-item-content">
+            <div class="wpr-menu-item-header">
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                    <?php if ($dish_number && (!$show_images || !$has_image)) : ?>
+                        <span class="wpr-dish-number-inline"><?php echo esc_html($dish_number); ?></span>
+                    <?php endif; ?>
+                    <h3 class="wpr-menu-item-title"><?php echo esc_html($item->post_title); ?></h3>
+                </div>
+                <?php if ($price) : ?>
+                    <span class="wpr-menu-item-price"><?php echo esc_html(wpr_format_price($price)); ?></span>
+                <?php endif; ?>
+            </div>
+            
+            <?php if (!empty($item->post_content)) : ?>
+                <div class="wpr-menu-item-description">
+                    <?php echo wpautop($item->post_content); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($vegan || $vegetarian || !empty($allergens)) : ?>
+                <div class="wpr-menu-item-meta">
+                    <?php if ($vegan) : ?>
+                        <span class="wpr-badge wpr-badge-vegan">🌿 Vegan</span>
+                    <?php elseif ($vegetarian) : ?>
+                        <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($allergens) && !is_wp_error($allergens)) : ?>
+                        <div class="wpr-allergens-badges">
+                            <?php foreach ($allergens as $allergen) : 
+                                $icon = get_term_meta($allergen->term_id, 'icon', true);
+                            ?>
+                                <span class="wpr-allergen-badge" title="<?php echo esc_attr($allergen->name); ?>">
+                                    <?php if ($icon) : ?>
+                                        <?php echo esc_html($icon); ?>
+                                    <?php endif; ?>
+                                    <?php echo esc_html($allergen->name); ?>
+                                </span>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
 add_shortcode('restaurant_menu', 'wpr_menu_shortcode');
