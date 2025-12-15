@@ -1,38 +1,119 @@
 /**
  * WP Restaurant Menu - Frontend Styles
- * Moderne, responsive Darstellung der Speisekarte
  */
 
-.wpr-menu-grid {
-    display: grid;
-    gap: 24px;
+.wpr-menu-wrapper {
     margin: 30px 0;
 }
 
-.wpr-columns-1 {
-    grid-template-columns: 1fr;
+/* Search Bar */
+.wpr-search-bar {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.wpr-columns-2 {
-    grid-template-columns: repeat(2, 1fr);
+.wpr-search-input-wrapper {
+    position: relative;
+    margin-bottom: 15px;
 }
 
-.wpr-columns-3 {
-    grid-template-columns: repeat(3, 1fr);
+.wpr-search-input {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    font-size: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    transition: border-color 0.2s;
 }
 
-/* Responsive */
+.wpr-search-input:focus {
+    outline: none;
+    border-color: #d97706;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+}
+
+.wpr-search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #e5e7eb;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.wpr-search-clear:hover {
+    background: #d1d5db;
+}
+
+.wpr-category-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.wpr-filter-btn {
+    padding: 8px 16px;
+    background: #f3f4f6;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    color: #374151;
+}
+
+.wpr-filter-btn:hover {
+    background: #e5e7eb;
+}
+
+.wpr-filter-btn.active {
+    background: #d97706;
+    color: #fff;
+    border-color: #d97706;
+}
+
+.wpr-search-results {
+    padding: 8px 12px;
+    background: #f0f9ff;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #0369a1;
+    font-weight: 500;
+}
+
+/* Menu Grid */
+.wpr-menu-grid {
+    display: grid;
+    gap: 24px;
+}
+
+.wpr-columns-1 { grid-template-columns: 1fr; }
+.wpr-columns-2 { grid-template-columns: repeat(2, 1fr); }
+.wpr-columns-3 { grid-template-columns: repeat(3, 1fr); }
+
 @media (max-width: 992px) {
-    .wpr-columns-3 {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .wpr-columns-3 { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
     .wpr-columns-2,
-    .wpr-columns-3 {
-        grid-template-columns: 1fr;
-    }
+    .wpr-columns-3 { grid-template-columns: 1fr; }
+    .wpr-category-filter { justify-content: center; }
 }
 
 /* Menu Item Card */
@@ -50,7 +131,6 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-/* Image Position: Top */
 .wpr-menu-item.wpr-has-image-top {
     display: flex;
     flex-direction: column;
@@ -61,7 +141,6 @@
     height: 220px;
     overflow: hidden;
     background: #f5f5f5;
-    position: relative;
 }
 
 .wpr-menu-item.wpr-has-image-top .wpr-menu-item-image img {
@@ -75,11 +154,9 @@
     transform: scale(1.05);
 }
 
-/* Image Position: Left */
 .wpr-menu-item.wpr-has-image-left {
     display: grid;
     grid-template-columns: 200px 1fr;
-    gap: 0;
 }
 
 .wpr-menu-item.wpr-has-image-left .wpr-menu-item-image {
@@ -88,7 +165,6 @@
     min-height: 180px;
     overflow: hidden;
     background: #f5f5f5;
-    position: relative;
 }
 
 .wpr-menu-item.wpr-has-image-left .wpr-menu-item-image img {
@@ -106,14 +182,12 @@
     .wpr-menu-item.wpr-has-image-left {
         grid-template-columns: 1fr;
     }
-    
     .wpr-menu-item.wpr-has-image-left .wpr-menu-item-image {
         width: 100%;
         height: 180px;
     }
 }
 
-/* Content Area */
 .wpr-menu-item-content {
     padding: 20px;
 }
@@ -140,7 +214,6 @@
     font-weight: 700;
     color: #d97706;
     white-space: nowrap;
-    min-width: fit-content;
 }
 
 .wpr-menu-item-description {
@@ -154,7 +227,6 @@
     margin-bottom: 0;
 }
 
-/* Meta Information */
 .wpr-menu-item-meta {
     display: flex;
     flex-wrap: wrap;
@@ -165,7 +237,6 @@
     margin-top: 8px;
 }
 
-/* Badges */
 .wpr-badge {
     display: inline-flex;
     align-items: center;
@@ -173,7 +244,6 @@
     border-radius: 20px;
     font-size: 0.85rem;
     font-weight: 500;
-    white-space: nowrap;
 }
 
 .wpr-badge-vegan {
@@ -195,7 +265,6 @@
     color: #1a1a1a;
 }
 
-/* No Items Message */
 .wpr-no-items {
     text-align: center;
     padding: 40px 20px;
@@ -205,35 +274,21 @@
     border-radius: 8px;
 }
 
-/* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
+    .wpr-search-bar,
     .wpr-menu-item {
         background: #2d2d2d;
         border-color: rgba(255, 255, 255, 0.1);
     }
-
-    .wpr-menu-item-title {
-        color: #f5f5f5;
+    .wpr-search-input {
+        background: #1a1a1a;
+        color: #fff;
+        border-color: #444;
     }
-
-    .wpr-menu-item-description {
-        color: #c0c0c0;
+    .wpr-filter-btn {
+        background: #1a1a1a;
+        color: #fff;
     }
-
-    .wpr-menu-item-meta {
-        border-top-color: #444;
-    }
-
-    .wpr-allergens {
-        color: #c0c0c0;
-    }
-
-    .wpr-allergens strong {
-        color: #f5f5f5;
-    }
-    
-    .wpr-no-items {
-        background: #2d2d2d;
-        color: #c0c0c0;
-    }
+    .wpr-menu-item-title { color: #f5f5f5; }
+    .wpr-menu-item-description { color: #c0c0c0; }
 }
