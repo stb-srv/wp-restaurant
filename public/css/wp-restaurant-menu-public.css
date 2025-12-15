@@ -1,0 +1,191 @@
+/**
+ * Public-Styles für WP Restaurant Menu
+ * Modernes, responsives Design
+ */
+
+.wpr-menu-grid {
+    display: grid;
+    gap: 24px;
+    margin: 30px 0;
+}
+
+.wpr-columns-1 {
+    grid-template-columns: 1fr;
+}
+
+.wpr-columns-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.wpr-columns-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.wpr-columns-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .wpr-columns-3,
+    .wpr-columns-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .wpr-columns-2,
+    .wpr-columns-3,
+    .wpr-columns-4 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Menu Item Card */
+.wpr-menu-item {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wpr-menu-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.wpr-menu-item-image {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f5f5f5;
+}
+
+.wpr-menu-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.wpr-menu-item:hover .wpr-menu-item-image img {
+    transform: scale(1.05);
+}
+
+.wpr-menu-item-content {
+    padding: 20px;
+}
+
+.wpr-menu-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.wpr-menu-item-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    flex: 1;
+}
+
+.wpr-menu-item-price {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #d97706;
+    white-space: nowrap;
+}
+
+.wpr-menu-item-description {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    font-size: 0.95rem;
+}
+
+.wpr-menu-item-description p:last-child {
+    margin-bottom: 0;
+}
+
+.wpr-menu-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* Badges */
+.wpr-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.wpr-badge-vegan {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.wpr-badge-vegetarian {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.wpr-badge-spicy {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.wpr-allergens {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.wpr-allergens strong {
+    color: #1a1a1a;
+}
+
+/* Keine Elemente gefunden */
+.wpr-no-items {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Dark Mode Support (optional) */
+@media (prefers-color-scheme: dark) {
+    .wpr-menu-item {
+        background: #2d2d2d;
+    }
+
+    .wpr-menu-item-title {
+        color: #f5f5f5;
+    }
+
+    .wpr-menu-item-description {
+        color: #c0c0c0;
+    }
+
+    .wpr-menu-item-meta {
+        border-top-color: #444;
+    }
+
+    .wpr-allergens {
+        color: #c0c0c0;
+    }
+
+    .wpr-allergens strong {
+        color: #f5f5f5;
+    }
+}
