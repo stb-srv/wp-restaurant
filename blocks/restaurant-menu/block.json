@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "wp-restaurant-menu/menu-display",
+  "version": "1.0.0",
+  "title": "Restaurant Menü",
+  "category": "widgets",
+  "icon": "food",
+  "description": "Zeige deine Speisekarte modern und übersichtlich an",
+  "keywords": ["restaurant", "menü", "speisekarte", "essen", "food"],
+  "supports": {
+    "html": false,
+    "align": ["wide", "full"]
+  },
+  "attributes": {
+    "menuList": {
+      "type": "string",
+      "default": ""
+    },
+    "category": {
+      "type": "string",
+      "default": ""
+    },
+    "columns": {
+      "type": "number",
+      "default": 2
+    },
+    "showImages": {
+      "type": "boolean",
+      "default": true
+    },
+    "limit": {
+      "type": "number",
+      "default": -1
+    }
+  },
+  "textdomain": "wp-restaurant-menu",
+  "editorScript": "file:./index.js",
+  "editorStyle": "file:./editor.css",
+  "style": "file:./style.css"
+}

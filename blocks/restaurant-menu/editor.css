@@ -1,0 +1,14 @@
+/**
+ * Editor-Styles für den Gutenberg Block
+ */
+
+.wpr-block-preview {
+    min-height: 200px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.wp-block-wp-restaurant-menu-menu-display {
+    margin: 20px 0;
+}
