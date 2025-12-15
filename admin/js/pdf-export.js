@@ -1,12 +1,11 @@
 /**
- * Admin JavaScript für PDF-Export
+ * PDF Export Admin JavaScript
  */
-
 (function($) {
     'use strict';
-
+    
     $(document).ready(function() {
-        console.log('PDF Export Admin Script geladen');
+        console.log('WP Restaurant Menu PDF Export loaded');
     });
-
+    
 })(jQuery);
