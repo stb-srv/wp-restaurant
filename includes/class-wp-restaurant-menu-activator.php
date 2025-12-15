@@ -2,13 +2,10 @@
 /**
  * Plugin-Aktivierung
  *
- * Diese Klasse definiert alle Code-Aktionen während der Plugin-Aktivierung
- *
  * @package    WP_Restaurant_Menu
  * @subpackage WP_Restaurant_Menu/includes
  */
 
-// Verhindere direkten Zugriff
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -17,18 +14,12 @@ class WP_Restaurant_Menu_Activator {
 
     /**
      * Code, der bei Plugin-Aktivierung ausgeführt wird
-     *
-     * Führt folgende Aufgaben aus:
-     * - Erstellt Standard-Kategorien
-     * - Erstellt Standard-Menükarten
-     * - Setzt Standardoptionen
-     * - Flush Rewrite Rules für Custom Post Type
      */
     public static function activate() {
-        // Custom Post Type temporär registrieren für Rewrite Rules
+        // Custom Post Type temporär registrieren
         self::register_temp_post_type();
 
-        // Flush Rewrite Rules, um Permalinks zu aktualisieren
+        // Flush Rewrite Rules
         flush_rewrite_rules();
 
         // Standard-Kategorien erstellen
@@ -37,22 +28,26 @@ class WP_Restaurant_Menu_Activator {
         // Standard-Menükarten erstellen
         self::create_default_menus();
 
-        // Plugin-Version in Datenbank speichern
-        add_option('wp_restaurant_menu_version', WP_RESTAURANT_MENU_VERSION);
+        // Plugin-Version speichern
+        if (!get_option('wp_restaurant_menu_version')) {
+            add_option('wp_restaurant_menu_version', '1.0.0');
+        }
 
-        // Standard-Einstellungen setzen
-        $default_settings = array(
-            'currency_symbol' => '€',
-            'currency_position' => 'after',
-            'decimal_separator' => ',',
-            'thousand_separator' => '.',
-            'number_of_decimals' => 2,
-        );
-        add_option('wp_restaurant_menu_settings', $default_settings);
+        // Standard-Einstellungen
+        if (!get_option('wp_restaurant_menu_settings')) {
+            $default_settings = array(
+                'currency_symbol' => '€',
+                'currency_position' => 'after',
+                'decimal_separator' => ',',
+                'thousand_separator' => '.',
+                'number_of_decimals' => 2,
+            );
+            add_option('wp_restaurant_menu_settings', $default_settings);
+        }
     }
 
     /**
-     * Registriere den Custom Post Type temporär für die Aktivierung
+     * Registriere CPT temporär
      */
     private static function register_temp_post_type() {
         register_post_type('restaurant_menu_item', array(
@@ -72,48 +67,67 @@ class WP_Restaurant_Menu_Activator {
     }
 
     /**
-     * Erstelle Standard-Kategorien bei Aktivierung
+     * Erstelle Standard-Kategorien
      */
     private static function create_default_categories() {
-        // Überprüfe ob bereits Kategorien existieren
         $existing_cats = get_terms(array(
             'taxonomy' => 'menu_category',
             'hide_empty' => false,
         ));
 
-        // Nur erstellen, wenn keine Kategorien existieren
         if (empty($existing_cats) || is_wp_error($existing_cats)) {
             $default_categories = array(
                 'Vorspeisen' => 'Köstliche Appetit-Anreger',
-                'Suppen' => 'Wärmende Suppen und Eintöpfe',
-                'Salate' => 'Frische Salat-Kreationen',
                 'Hauptgerichte' => 'Unsere Hauptspeisen',
-                'Vegetarisch' => 'Vegetarische Köstlichkeiten',
-                'Fisch & Meeresfrüchte' => 'Frisch aus dem Meer',
-                'Fleischgerichte' => 'Herzhafte Fleischspezialitäten',
-                'Beilagen' => 'Leckere Beilagen',
                 'Desserts' => 'Süße Vergnügungen',
                 'Getränke' => 'Erfrischende Getränke',
             );
 
             foreach ($default_categories as $name => $description) {
                 if (!term_exists($name, 'menu_category')) {
-                    wp_insert_term(
-                        $name,
-                        'menu_category',
-                        array('description' => $description)
-                    );
+                    wp_insert_term($name, 'menu_category', array(
+                        'description' => $description
+                    ));
                 }
             }
         }
     }
 
     /**
-     * Erstelle Standard-Menükarten bei Aktivierung
+     * Erstelle Standard-Menükarten
      */
     private static function create_default_menus() {
-        // Lade die Menüs-Klasse
-        require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wp-restaurant-menu-menus.php';
-        WP_Restaurant_Menu_Menus::create_default_menus();
+        $existing_menus = get_terms(array(
+            'taxonomy' => 'menu_list',
+            'hide_empty' => false,
+        ));
+
+        if (empty($existing_menus) || is_wp_error($existing_menus)) {
+            $default_menus = array(
+                array(
+                    'name' => 'Hauptspeisekarte',
+                    'slug' => 'hauptspeisekarte',
+                    'description' => 'Unsere Hauptmenükarte mit allen klassischen Gerichten',
+                ),
+                array(
+                    'name' => 'Getränkekarte',
+                    'slug' => 'getraenkekarte',
+                    'description' => 'Alle Getränke, Weine und Cocktails',
+                ),
+            );
+
+            foreach ($default_menus as $menu) {
+                if (!term_exists($menu['slug'], 'menu_list')) {
+                    wp_insert_term(
+                        $menu['name'],
+                        'menu_list',
+                        array(
+                            'slug' => $menu['slug'],
+                            'description' => $menu['description'],
+                        )
+                    );
+                }
+            }
+        }
     }
 }
