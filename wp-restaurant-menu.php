@@ -23,18 +23,16 @@ define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
  * Aktivierung
  */
 function wpr_activate() {
-    // CPT registrieren
     wpr_register_post_type();
     wpr_register_taxonomies();
-    
-    // Rewrite Rules
     flush_rewrite_rules();
     
-    // Standard-Einstellungen
     if (!get_option('wpr_settings')) {
         add_option('wpr_settings', array(
             'currency_symbol' => '€',
             'currency_position' => 'after',
+            'show_images' => 'yes',
+            'image_position' => 'left',
         ));
     }
     
@@ -78,7 +76,6 @@ add_action('init', 'wpr_register_post_type');
  * Taxonomien registrieren
  */
 function wpr_register_taxonomies() {
-    // Kategorien
     register_taxonomy('wpr_category', 'wpr_menu_item', array(
         'labels' => array(
             'name' => 'Kategorien',
@@ -91,7 +88,6 @@ function wpr_register_taxonomies() {
         'rewrite' => false,
     ));
     
-    // Menükarten
     register_taxonomy('wpr_menu_list', 'wpr_menu_item', array(
         'labels' => array(
             'name' => 'Menükarten',
@@ -105,6 +101,21 @@ function wpr_register_taxonomies() {
     ));
 }
 add_action('init', 'wpr_register_taxonomies');
+
+/**
+ * Frontend CSS laden
+ */
+function wpr_enqueue_styles() {
+    if (is_singular() || is_page()) {
+        wp_enqueue_style(
+            'wpr-menu-styles',
+            WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/menu-styles.css',
+            array(),
+            WP_RESTAURANT_MENU_VERSION
+        );
+    }
+}
+add_action('wp_enqueue_scripts', 'wpr_enqueue_styles');
 
 /**
  * Einstellungs-Seite hinzufügen
@@ -125,11 +136,12 @@ add_action('admin_menu', 'wpr_add_settings_page');
  * Einstellungs-Seite rendern
  */
 function wpr_render_settings_page() {
-    // Einstellungen speichern
     if (isset($_POST['wpr_save_settings']) && check_admin_referer('wpr_settings_save', 'wpr_settings_nonce')) {
         $settings = array(
             'currency_symbol' => sanitize_text_field($_POST['currency_symbol']),
             'currency_position' => sanitize_text_field($_POST['currency_position']),
+            'show_images' => sanitize_text_field($_POST['show_images']),
+            'image_position' => sanitize_text_field($_POST['image_position']),
         );
         update_option('wpr_settings', $settings);
         echo '<div class="notice notice-success"><p><strong>Einstellungen gespeichert!</strong></p></div>';
@@ -138,6 +150,8 @@ function wpr_render_settings_page() {
     $settings = get_option('wpr_settings', array(
         'currency_symbol' => '€',
         'currency_position' => 'after',
+        'show_images' => 'yes',
+        'image_position' => 'left',
     ));
     ?>
     <div class="wrap">
@@ -159,14 +173,10 @@ function wpr_render_settings_page() {
                                 <option value="€" <?php selected($settings['currency_symbol'], '€'); ?>>€ (Euro-Symbol)</option>
                                 <option value="EUR" <?php selected($settings['currency_symbol'], 'EUR'); ?>>EUR</option>
                                 <option value="EURO" <?php selected($settings['currency_symbol'], 'EURO'); ?>>EURO</option>
-                                <option value="€" <?php selected($settings['currency_symbol'], '€'); ?>>€</option>
                                 <option value="$" <?php selected($settings['currency_symbol'], '$'); ?>>$ (Dollar)</option>
                                 <option value="£" <?php selected($settings['currency_symbol'], '£'); ?>>£ (Pfund)</option>
                                 <option value="CHF" <?php selected($settings['currency_symbol'], 'CHF'); ?>>CHF (Schweizer Franken)</option>
                             </select>
-                            <p class="description">
-                                Wähle das Währungssymbol, das bei allen Preisen angezeigt wird.
-                            </p>
                         </td>
                     </tr>
                     
@@ -176,25 +186,40 @@ function wpr_render_settings_page() {
                         </th>
                         <td>
                             <select name="currency_position" id="currency_position" style="min-width: 200px;">
-                                <option value="after" <?php selected($settings['currency_position'], 'after'); ?>>Nach dem Preis (z.B. 12,50 €)</option>
-                                <option value="before" <?php selected($settings['currency_position'], 'before'); ?>>Vor dem Preis (z.B. € 12,50)</option>
+                                <option value="after" <?php selected($settings['currency_position'], 'after'); ?>>Nach dem Preis (12,50 €)</option>
+                                <option value="before" <?php selected($settings['currency_position'], 'before'); ?>>Vor dem Preis (€ 12,50)</option>
                             </select>
-                            <p class="description">
-                                Bestimme, ob das Währungssymbol vor oder nach dem Preis erscheint.
-                            </p>
                         </td>
                     </tr>
                 </table>
                 
-                <div style="background: #f0f6fc; border-left: 4px solid #2271b1; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                    <h3 style="margin-top: 0; color: #2271b1;">💡 Vorschau</h3>
-                    <p style="font-size: 1.1em; margin: 0;">
-                        <strong>Beispiel-Preis:</strong> 
-                        <span id="price-preview" style="color: #d97706; font-weight: bold;">
-                            <?php echo wpr_format_price_preview('12,50', $settings); ?>
-                        </span>
-                    </p>
-                </div>
+                <h2>Bild-Einstellungen</h2>
+                
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label for="show_images">Produktbilder anzeigen</label>
+                        </th>
+                        <td>
+                            <select name="show_images" id="show_images" style="min-width: 200px;">
+                                <option value="yes" <?php selected($settings['show_images'], 'yes'); ?>>Ja, Bilder anzeigen</option>
+                                <option value="no" <?php selected($settings['show_images'], 'no'); ?>>Nein, keine Bilder</option>
+                            </select>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <th scope="row">
+                            <label for="image_position">Bild-Position</label>
+                        </th>
+                        <td>
+                            <select name="image_position" id="image_position" style="min-width: 200px;">
+                                <option value="top" <?php selected($settings['image_position'], 'top'); ?>>Oben (über dem Text)</option>
+                                <option value="left" <?php selected($settings['image_position'], 'left'); ?>>Links (neben dem Text)</option>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
                 
                 <p class="submit">
                     <button type="submit" name="wpr_save_settings" class="button button-primary button-large">
@@ -203,62 +228,12 @@ function wpr_render_settings_page() {
                 </p>
             </form>
         </div>
-        
-        <div style="background: #fff; padding: 20px; margin-top: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 800px;">
-            <h2>Verwendung</h2>
-            <p>Die Währungseinstellungen werden automatisch auf folgende Bereiche angewendet:</p>
-            <ul style="list-style: disc; margin-left: 20px;">
-                <li>Alle Preise im <strong>Frontend</strong> (Shortcode <code>[restaurant_menu]</code>)</li>
-                <li><strong>PDF-Export</strong> der Speisekarten</li>
-                <li>Künftige <strong>Gutenberg-Blöcke</strong></li>
-            </ul>
-            <p style="color: #666; font-style: italic;">
-                Tipp: Im Backend bei "Gericht bearbeiten" gibst du nur die Zahl ein (z.B. 12,50). Das Währungssymbol wird automatisch hinzugefügt.
-            </p>
-        </div>
     </div>
-    
-    <script>
-    // Live-Vorschau
-    (function() {
-        const symbolSelect = document.getElementById('currency_symbol');
-        const positionSelect = document.getElementById('currency_position');
-        const preview = document.getElementById('price-preview');
-        
-        function updatePreview() {
-            const symbol = symbolSelect.value;
-            const position = positionSelect.value;
-            const price = '12,50';
-            
-            if (position === 'before') {
-                preview.textContent = symbol + ' ' + price;
-            } else {
-                preview.textContent = price + ' ' + symbol;
-            }
-        }
-        
-        symbolSelect.addEventListener('change', updatePreview);
-        positionSelect.addEventListener('change', updatePreview);
-    })();
-    </script>
     <?php
 }
 
 /**
- * Preis-Vorschau formatieren
- */
-function wpr_format_price_preview($price, $settings) {
-    $symbol = $settings['currency_symbol'];
-    $position = $settings['currency_position'];
-    
-    if ($position === 'before') {
-        return $symbol . ' ' . $price;
-    }
-    return $price . ' ' . $symbol;
-}
-
-/**
- * Preis formatieren (für Frontend und PDF)
+ * Preis formatieren
  */
 function wpr_format_price($price) {
     if (empty($price)) {
@@ -337,6 +312,12 @@ function wpr_render_meta_box($post) {
                 <span>🌿 Vegan</span>
             </label>
         </p>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-left: 4px solid #2271b1; border-radius: 4px;">
+            <p style="margin: 0; color: #2271b1;">
+                <strong>📷 Tipp:</strong> Nutze das "Beitragsbild" in der rechten Sidebar, um ein ansprechendes Produktbild hinzuzufügen!
+            </p>
+        </div>
     </div>
     <?php
 }
@@ -377,6 +358,7 @@ function wpr_menu_shortcode($atts) {
     $atts = shortcode_atts(array(
         'menu' => '',
         'category' => '',
+        'columns' => '1',
     ), $atts);
     
     $args = array(
@@ -411,42 +393,62 @@ function wpr_menu_shortcode($atts) {
     $query = new WP_Query($args);
     
     if (!$query->have_posts()) {
-        return '<p>Keine Gerichte gefunden.</p>';
+        return '<p class="wpr-no-items">Keine Gerichte gefunden.</p>';
     }
+    
+    $settings = get_option('wpr_settings', array(
+        'show_images' => 'yes',
+        'image_position' => 'left',
+    ));
+    
+    $show_images = $settings['show_images'] === 'yes';
+    $image_position = $settings['image_position'];
+    $columns = max(1, min(3, intval($atts['columns'])));
     
     ob_start();
     ?>
-    <div class="wpr-menu" style="display: grid; gap: 20px; margin: 20px 0;">
+    <div class="wpr-menu-grid wpr-columns-<?php echo esc_attr($columns); ?>">
         <?php while ($query->have_posts()) : $query->the_post(); ?>
             <?php
                 $price = get_post_meta(get_the_ID(), '_wpr_price', true);
                 $allergens = get_post_meta(get_the_ID(), '_wpr_allergens', true);
                 $vegan = get_post_meta(get_the_ID(), '_wpr_vegan', true);
                 $vegetarian = get_post_meta(get_the_ID(), '_wpr_vegetarian', true);
+                $has_image = has_post_thumbnail();
             ?>
-            <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
-                    <h3 style="margin: 0; font-size: 1.2em;"><?php the_title(); ?></h3>
-                    <?php if ($price) : ?>
-                        <strong style="color: #d97706; font-size: 1.1em;"><?php echo esc_html(wpr_format_price($price)); ?></strong>
-                    <?php endif; ?>
-                </div>
-                
-                <?php if (get_the_content()) : ?>
-                    <div style="color: #666; margin-bottom: 10px; line-height: 1.5;">
-                        <?php the_content(); ?>
+            <div class="wpr-menu-item <?php echo $image_position === 'left' && $has_image ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && $has_image ? 'wpr-has-image-top' : ''; ?>">
+                <?php if ($show_images && $has_image) : ?>
+                    <div class="wpr-menu-item-image">
+                        <?php the_post_thumbnail('medium'); ?>
                     </div>
                 <?php endif; ?>
                 
-                <div style="font-size: 0.9em; color: #999; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <?php if ($vegan) : ?>
-                        <span style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 4px; font-weight: 500;">🌿 Vegan</span>
-                    <?php elseif ($vegetarian) : ?>
-                        <span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 4px; font-weight: 500;">🌱 Vegetarisch</span>
+                <div class="wpr-menu-item-content">
+                    <div class="wpr-menu-item-header">
+                        <h3 class="wpr-menu-item-title"><?php the_title(); ?></h3>
+                        <?php if ($price) : ?>
+                            <span class="wpr-menu-item-price"><?php echo esc_html(wpr_format_price($price)); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <?php if (get_the_content()) : ?>
+                        <div class="wpr-menu-item-description">
+                            <?php the_content(); ?>
+                        </div>
                     <?php endif; ?>
                     
-                    <?php if ($allergens) : ?>
-                        <span style="color: #666;">Allergene: <strong><?php echo esc_html($allergens); ?></strong></span>
+                    <?php if ($vegan || $vegetarian || $allergens) : ?>
+                        <div class="wpr-menu-item-meta">
+                            <?php if ($vegan) : ?>
+                                <span class="wpr-badge wpr-badge-vegan">🌿 Vegan</span>
+                            <?php elseif ($vegetarian) : ?>
+                                <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
+                            <?php endif; ?>
+                            
+                            <?php if ($allergens) : ?>
+                                <span class="wpr-allergens">Allergene: <strong><?php echo esc_html($allergens); ?></strong></span>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
