@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.4.0');
+define('WP_RESTAURANT_MENU_VERSION', '1.4.1');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -174,7 +174,7 @@ function wpr_create_default_allergens() {
         'G' => array('name' => 'G - Milch/Laktose', 'icon' => '🥛'),
         'H' => array('name' => 'H - Schalenfrüchte', 'icon' => '🌰'),
         'L' => array('name' => 'L - Sellerie', 'icon' => '🥬'),
-        'M' => array('name' => 'M - Senf', 'icon' => '🍯'),
+        'M' => array('name' => 'M - Senf', 'icon' => '🌯'),
         'N' => array('name' => 'N - Sesamsamen', 'icon' => '🌾'),
         'O' => array('name' => 'O - Schwefeldioxid', 'icon' => '🧪'),
         'P' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
@@ -207,7 +207,7 @@ function wpr_create_default_ingredients() {
         'meeresfruechte' => array('name' => 'Meeresfrüchte', 'icon' => '🦞'),
         'garnelen' => array('name' => 'Garnelen', 'icon' => '🦐'),
         'krebstiere' => array('name' => 'Krebstiere', 'icon' => '🦀'),
-        'muscheln' => array('name' => 'Muscheln', 'icon' => '🦪'),
+        'muscheln' => array('name' => 'Muscheln', 'icon' => '🧪'),
         'milchprodukte' => array('name' => 'Milchprodukte', 'icon' => '🥛'),
         'kaese' => array('name' => 'Käse', 'icon' => '🧀'),
         'sahne' => array('name' => 'Sahne', 'icon' => '🥛'),
@@ -241,9 +241,12 @@ function wpr_get_placeholder_image() {
         return '';
     }
     
+    // Inline SVG placeholders - funktionieren immer!
     $placeholders = array(
-        WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/placeholder-food.jpg',
-        WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/placeholder-drink.jpg',
+        // Food placeholder
+        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="40%25" font-family="Arial" font-size="48" fill="%23d97706" text-anchor="middle" dominant-baseline="middle"%3E🍽️%3C/text%3E%3Ctext x="50%25" y="60%25" font-family="Arial" font-size="18" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle"%3EGericht%3C/text%3E%3C/svg%3E',
+        // Drink placeholder
+        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23fef3c7" width="400" height="300"/%3E%3Ctext x="50%25" y="40%25" font-family="Arial" font-size="48" fill="%23f59e0b" text-anchor="middle" dominant-baseline="middle"%3E🍹%3C/text%3E%3Ctext x="50%25" y="60%25" font-family="Arial" font-size="18" fill="%23b45309" text-anchor="middle" dominant-baseline="middle"%3EGetränk%3C/text%3E%3C/svg%3E',
     );
     
     return $placeholders[array_rand($placeholders)];
@@ -388,7 +391,7 @@ function wpr_render_settings_page() {
                                 <option value="yes" <?php selected($settings['use_placeholder'], 'yes'); ?>>Ja, bei fehlenden Bildern anzeigen</option>
                                 <option value="no" <?php selected($settings['use_placeholder'], 'no'); ?>>Nein, keine Platzhalter</option>
                             </select>
-                            <p class="description">Zeigt ein zufälliges Beispielbild wenn kein Gericht-Bild hochgeladen wurde.</p>
+                            <p class="description">Zeigt ein Icon-Platzhalter wenn kein Gericht-Bild hochgeladen wurde.</p>
                         </td>
                     </tr>
                 </table>
@@ -415,14 +418,14 @@ function wpr_render_settings_page() {
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="grid_columns">Spalten im Grid</label></th>
+                        <th scope="row"><label for="grid_columns">Spalten-Layout</label></th>
                         <td>
                             <select name="grid_columns" id="grid_columns" style="min-width: 200px;">
-                                <option value="1" <?php selected($settings['grid_columns'], '1'); ?>>1 Spalte (vertikal)</option>
+                                <option value="1" <?php selected($settings['grid_columns'], '1'); ?>>1 Spalte (untereinander)</option>
                                 <option value="2" <?php selected($settings['grid_columns'], '2'); ?>>2 Spalten (Desktop)</option>
                                 <option value="3" <?php selected($settings['grid_columns'], '3'); ?>>3 Spalten (breit)</option>
                             </select>
-                            <p class="description">Anzahl der Spalten auf Desktop. Mobile geräte zeigen immer 1 Spalte.</p>
+                            <p class="description">Anzahl der Spalten auf Desktop-Geräten. Smartphones zeigen automatisch immer 1 Spalte.</p>
                         </td>
                     </tr>
                 </table>
@@ -834,7 +837,7 @@ function wpr_render_single_item($item, $show_images, $image_position) {
     
     ob_start();
     ?>
-    <div class="wpr-menu-item <?php echo $image_position === 'left' && ($has_image || $use_placeholder) ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && ($has_image || $use_placeholder) ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
+    <div class="wpr-menu-item <?php echo ($image_position === 'left' && ($has_image || $use_placeholder)) ? 'wpr-has-image-left' : ''; ?> <?php echo ($image_position === 'top' && ($has_image || $use_placeholder)) ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
          data-title="<?php echo esc_attr(strtolower($item->post_title)); ?>" 
          data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags($item->post_content))); ?>" 
          data-number="<?php echo esc_attr($dish_number); ?>">
