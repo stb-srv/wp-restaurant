@@ -9,14 +9,29 @@ if (!defined('ABSPATH')) {
 
 class WPR_Import_Export {
 
-    public static function render_page() {
-        // Handle Export
-        if (isset($_POST['wpr_export']) && check_admin_referer('wpr_export_action', 'wpr_export_nonce')) {
-            $format = sanitize_text_field($_POST['export_format']);
-            self::export_menu($format);
-            exit;
+    public static function init() {
+        add_action('admin_init', array(__CLASS__, 'handle_export'));
+    }
+    
+    public static function handle_export() {
+        if (!isset($_GET['wpr_export_action']) || !isset($_GET['format'])) {
+            return;
         }
         
+        if (!current_user_can('manage_options')) {
+            wp_die('Keine Berechtigung');
+        }
+        
+        if (!wp_verify_nonce($_GET['_wpnonce'], 'wpr_export')) {
+            wp_die('Sicherheitsüberprüfung fehlgeschlagen');
+        }
+        
+        $format = sanitize_text_field($_GET['format']);
+        self::export_menu($format);
+        exit;
+    }
+
+    public static function render_page() {
         // Handle Import
         if (isset($_POST['wpr_import']) && check_admin_referer('wpr_import_action', 'wpr_import_nonce')) {
             $result = self::import_menu($_FILES['import_file']);
@@ -47,23 +62,62 @@ class WPR_Import_Export {
                 </h2>
                 
                 <p style="color: #666; margin-bottom: 20px;">
-                    Exportiere alle deine Gerichte in verschiedenen Formaten. Perfekt für Backups oder zum Übertragen auf andere Systeme.
+                    Exportiere alle deine Gerichte in verschiedenen Formaten. Die Datei wird automatisch heruntergeladen.
                 </p>
                 
-                <form method="post" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <?php wp_nonce_field('wpr_export_action', 'wpr_export_nonce'); ?>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    <?php 
+                    $formats = array(
+                        'csv' => array(
+                            'icon' => '📊',
+                            'name' => 'CSV',
+                            'desc' => 'Excel, Google Sheets',
+                            'color' => '#10b981'
+                        ),
+                        'json' => array(
+                            'icon' => '📦',
+                            'name' => 'JSON',
+                            'desc' => 'Universal, API-ready',
+                            'color' => '#3b82f6'
+                        ),
+                        'xml' => array(
+                            'icon' => '📜',
+                            'name' => 'XML',
+                            'desc' => 'Standard-Format',
+                            'color' => '#8b5cf6'
+                        ),
+                    );
                     
-                    <select name="export_format" required style="padding: 10px 15px; border-radius: 6px; border: 2px solid #e5e7eb; font-size: 15px;">
-                        <option value="csv">CSV (Excel, Google Sheets)</option>
-                        <option value="json">JSON (Universal)</option>
-                        <option value="xml">XML (Universal)</option>
-                    </select>
-                    
-                    <button type="submit" name="wpr_export" class="button button-primary button-large" style="display: flex; align-items: center; gap: 8px;">
-                        <span class="dashicons dashicons-download"></span>
-                        Jetzt exportieren
-                    </button>
-                </form>
+                    foreach ($formats as $format => $info) :
+                        $export_url = wp_nonce_url(
+                            add_query_arg(array(
+                                'wpr_export_action' => '1',
+                                'format' => $format
+                            ), admin_url('edit.php?post_type=wpr_menu_item&page=wpr-import-export')),
+                            'wpr_export'
+                        );
+                    ?>
+                        <a href="<?php echo esc_url($export_url); ?>" 
+                           class="wpr-export-card" 
+                           style="display: block; padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px; text-decoration: none; transition: all 0.2s; background: #fff;">
+                            <div style="font-size: 32px; margin-bottom: 10px;"><?php echo $info['icon']; ?></div>
+                            <h3 style="margin: 0 0 5px 0; color: <?php echo $info['color']; ?>; font-size: 18px;">
+                                <?php echo esc_html($info['name']); ?>
+                            </h3>
+                            <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                                <?php echo esc_html($info['desc']); ?>
+                            </p>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+                
+                <style>
+                    .wpr-export-card:hover {
+                        border-color: #d97706 !important;
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+                    }
+                </style>
                 
                 <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 4px;">
                     <strong style="color: #0369a1;">💡 Exportierte Daten umfassen:</strong>
@@ -168,6 +222,11 @@ class WPR_Import_Export {
         
         $filename = 'restaurant-menu-' . date('Y-m-d-His');
         
+        // Clear any output buffers
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         switch ($format) {
             case 'csv':
                 self::export_csv($data, $filename);
@@ -183,15 +242,21 @@ class WPR_Import_Export {
     
     private static function export_csv($data, $filename) {
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=' . $filename . '.csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '.csv"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         
         $output = fopen('php://output', 'w');
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
         
-        fputcsv($output, array('dish_number', 'title', 'description', 'price', 'allergens', 'category', 'menu', 'vegetarian', 'vegan'));
+        // UTF-8 BOM für Excel
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
         
+        // Header
+        fputcsv($output, array('dish_number', 'title', 'description', 'price', 'allergens', 'category', 'menu', 'vegetarian', 'vegan'), ';');
+        
+        // Data
         foreach ($data as $row) {
-            fputcsv($output, $row);
+            fputcsv($output, $row, ';');
         }
         
         fclose($output);
@@ -199,21 +264,31 @@ class WPR_Import_Export {
     
     private static function export_json($data, $filename) {
         header('Content-Type: application/json; charset=utf-8');
-        header('Content-Disposition: attachment; filename=' . $filename . '.json');
+        header('Content-Disposition: attachment; filename="' . $filename . '.json"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         
-        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        echo json_encode(array(
+            'exported_at' => date('Y-m-d H:i:s'),
+            'total_items' => count($data),
+            'items' => $data
+        ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
     
     private static function export_xml($data, $filename) {
         header('Content-Type: application/xml; charset=utf-8');
-        header('Content-Disposition: attachment; filename=' . $filename . '.xml');
+        header('Content-Disposition: attachment; filename="' . $filename . '.xml"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><menu></menu>');
+        $xml->addAttribute('exported_at', date('Y-m-d H:i:s'));
+        $xml->addAttribute('total_items', count($data));
         
         foreach ($data as $item) {
             $dish = $xml->addChild('dish');
             foreach ($item as $key => $value) {
-                $dish->addChild($key, htmlspecialchars($value));
+                $dish->addChild($key, htmlspecialchars($value, ENT_XML1, 'UTF-8'));
             }
         }
         
@@ -245,12 +320,17 @@ class WPR_Import_Export {
             return array('success' => false, 'message' => 'Datei konnte nicht geöffnet werden.');
         }
         
-        $header = fgetcsv($handle);
+        // Detect delimiter
+        $first_line = fgets($handle);
+        rewind($handle);
+        $delimiter = (strpos($first_line, ';') !== false) ? ';' : ',';
+        
+        $header = fgetcsv($handle, 0, $delimiter);
         $imported = 0;
         $skipped = 0;
         
-        while (($row = fgetcsv($handle)) !== false) {
-            if (empty($row[1])) continue; // Skip if no title
+        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+            if (empty($row[1])) continue;
             
             $result = self::create_menu_item(array(
                 'dish_number' => $row[0] ?? '',
@@ -281,10 +361,17 @@ class WPR_Import_Export {
     
     private static function import_json($filepath) {
         $content = file_get_contents($filepath);
-        $data = json_decode($content, true);
+        $json = json_decode($content, true);
         
-        if (!$data) {
+        if (!$json) {
             return array('success' => false, 'message' => 'Ungültige JSON-Datei.');
+        }
+        
+        // Handle both formats: with wrapper or direct array
+        $data = isset($json['items']) ? $json['items'] : $json;
+        
+        if (!is_array($data)) {
+            return array('success' => false, 'message' => 'Ungültiges JSON-Format.');
         }
         
         $imported = 0;
@@ -347,13 +434,11 @@ class WPR_Import_Export {
     }
     
     private static function create_menu_item($data) {
-        // Check for duplicates
         $existing = get_page_by_title($data['title'], OBJECT, 'wpr_menu_item');
         if ($existing) {
             return false;
         }
         
-        // Create post
         $post_id = wp_insert_post(array(
             'post_title' => sanitize_text_field($data['title']),
             'post_content' => wp_kses_post($data['description']),
@@ -365,14 +450,12 @@ class WPR_Import_Export {
             return false;
         }
         
-        // Add meta
         update_post_meta($post_id, '_wpr_dish_number', sanitize_text_field($data['dish_number']));
         update_post_meta($post_id, '_wpr_price', sanitize_text_field($data['price']));
         update_post_meta($post_id, '_wpr_allergens', sanitize_text_field($data['allergens']));
         update_post_meta($post_id, '_wpr_vegetarian', $data['vegetarian'] === '1' ? '1' : '0');
         update_post_meta($post_id, '_wpr_vegan', $data['vegan'] === '1' ? '1' : '0');
         
-        // Add taxonomies
         if (!empty($data['category'])) {
             $cats = array_map('trim', explode(',', $data['category']));
             wp_set_post_terms($post_id, $cats, 'wpr_category');
@@ -386,3 +469,6 @@ class WPR_Import_Export {
         return true;
     }
 }
+
+// Initialize
+WPR_Import_Export::init();
