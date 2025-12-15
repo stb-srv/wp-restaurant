@@ -22,7 +22,7 @@
     backdrop-filter: blur(4px);
 }
 
-/* Dish Number Inline (wenn kein Bild) */
+/* Dish Number Inline */
 .wpr-dish-number-inline {
     display: inline-flex;
     align-items: center;
@@ -36,6 +36,34 @@
     font-weight: 700;
     font-size: 14px;
     flex-shrink: 0;
+}
+
+/* Allergen Badges */
+.wpr-allergens-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.wpr-allergen-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid #fde68a;
+    cursor: help;
+    transition: all 0.2s;
+}
+
+.wpr-allergen-badge:hover {
+    background: #fde68a;
+    transform: translateY(-1px);
 }
 
 /* Kompakte Such-Trigger-Box */
@@ -285,8 +313,7 @@
 }
 
 .wpr-search-overlay .wpr-menu-item-title,
-.wpr-search-overlay .wpr-menu-item-description,
-.wpr-search-overlay .wpr-allergens {
+.wpr-search-overlay .wpr-menu-item-description {
     color: #fff;
 }
 
@@ -423,15 +450,6 @@
 .wpr-badge-vegetarian {
     background: #fef3c7;
     color: #92400e;
-}
-
-.wpr-allergens {
-    font-size: 0.8rem;
-    color: #666;
-}
-
-.wpr-allergens strong {
-    color: #1a1a1a;
 }
 
 .wpr-no-items {

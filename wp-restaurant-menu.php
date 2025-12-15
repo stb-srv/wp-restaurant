@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.0.4
+ * Version: 1.1.0
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,16 +13,16 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.0.4');
+define('WP_RESTAURANT_MENU_VERSION', '1.1.0');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-// Import/Export Class laden
 require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wpr-import-export.php';
 
 function wpr_activate() {
     wpr_register_post_type();
     wpr_register_taxonomies();
+    wpr_create_default_allergens();
     flush_rewrite_rules();
     
     if (!get_option('wpr_settings')) {
@@ -89,8 +89,115 @@ function wpr_register_taxonomies() {
         'public' => false,
         'rewrite' => false,
     ));
+    
+    register_taxonomy('wpr_allergen', 'wpr_menu_item', array(
+        'labels' => array(
+            'name' => 'Allergene',
+            'singular_name' => 'Allergen',
+            'add_new_item' => 'Neues Allergen hinzufügen',
+            'edit_item' => 'Allergen bearbeiten',
+            'menu_name' => 'Allergene',
+        ),
+        'hierarchical' => false,
+        'show_ui' => true,
+        'show_admin_column' => false,
+        'public' => false,
+        'rewrite' => false,
+        'meta_box_cb' => 'wpr_allergen_meta_box',
+    ));
 }
 add_action('init', 'wpr_register_taxonomies');
+
+function wpr_create_default_allergens() {
+    $allergens = array(
+        'A' => array('name' => 'A - Glutenhaltiges Getreide', 'icon' => '🌾'),
+        'B' => array('name' => 'B - Krebstiere', 'icon' => '🦀'),
+        'C' => array('name' => 'C - Eier', 'icon' => '🥚'),
+        'D' => array('name' => 'D - Fisch', 'icon' => '🐟'),
+        'E' => array('name' => 'E - Erdнüsse', 'icon' => '🥜'),
+        'F' => array('name' => 'F - Soja', 'icon' => '🌱'),
+        'G' => array('name' => 'G - Milch/Laktose', 'icon' => '🥛'),
+        'H' => array('name' => 'H - Schalenфrüchte', 'icon' => '🌰'),
+        'L' => array('name' => 'L - Sellerie', 'icon' => '🥬'),
+        'M' => array('name' => 'M - Senf', 'icon' => '🍯'),
+        'N' => array('name' => 'N - Sesamsamen', 'icon' => '🌾'),
+        'O' => array('name' => 'O - Schwefeldioxid', 'icon' => '🦪'),
+        'P' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
+        'R' => array('name' => 'R - Weichtiere', 'icon' => '🦐'),
+    );
+    
+    foreach ($allergens as $slug => $data) {
+        if (!term_exists($slug, 'wpr_allergen')) {
+            $term = wp_insert_term($data['name'], 'wpr_allergen', array(
+                'slug' => strtolower($slug),
+            ));
+            
+            if (!is_wp_error($term)) {
+                add_term_meta($term['term_id'], 'icon', $data['icon'], true);
+            }
+        }
+    }
+}
+
+function wpr_allergen_meta_box($post) {
+    $allergens = get_terms(array(
+        'taxonomy' => 'wpr_allergen',
+        'hide_empty' => false,
+        'orderby' => 'name',
+        'order' => 'ASC',
+    ));
+    
+    $post_allergens = wp_get_post_terms($post->ID, 'wpr_allergen', array('fields' => 'ids'));
+    if (is_wp_error($post_allergens)) {
+        $post_allergens = array();
+    }
+    ?>
+    <div class="wpr-allergen-meta-box" style="padding: 15px;">
+        <p style="margin-bottom: 15px; color: #666;">
+            Wähle alle zutreffenden Allergene für dieses Gericht:
+        </p>
+        
+        <?php if (empty($allergens) || is_wp_error($allergens)) : ?>
+            <p>
+                <em>Keine Allergene gefunden.</em>
+                <a href="<?php echo admin_url('edit-tags.php?taxonomy=wpr_allergen&post_type=wpr_menu_item'); ?>">
+                    Jetzt Allergene anlegen »
+                </a>
+            </p>
+        <?php else : ?>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                <?php foreach ($allergens as $allergen) : 
+                    $icon = get_term_meta($allergen->term_id, 'icon', true);
+                ?>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #f9f9f9; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer; transition: all 0.2s;" 
+                           class="wpr-allergen-checkbox"
+                           onmouseover="this.style.borderColor='#d97706'; this.style.background='#fff';" 
+                           onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9f9f9';">
+                        <input 
+                            type="checkbox" 
+                            name="tax_input[wpr_allergen][]" 
+                            value="<?php echo esc_attr($allergen->term_id); ?>"
+                            <?php checked(in_array($allergen->term_id, $post_allergens)); ?>
+                            style="margin: 0;"
+                        />
+                        <?php if ($icon) : ?>
+                            <span style="font-size: 20px;"><?php echo esc_html($icon); ?></span>
+                        <?php endif; ?>
+                        <strong><?php echo esc_html($allergen->name); ?></strong>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+            
+            <div style="margin-top: 15px; padding: 12px; background: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 4px;">
+                <p style="margin: 0; color: #0369a1; font-size: 13px;">
+                    <strong>💡 Hinweis:</strong> Die gewählten Allergene werden automatisch als Badges beim Gericht angezeigt.
+                    Du kannst weitere Allergene unter <a href="<?php echo admin_url('edit-tags.php?taxonomy=wpr_allergen&post_type=wpr_menu_item'); ?>" style="color: #0369a1;">Allergene verwalten</a> anlegen.
+                </p>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
 
 function wpr_enqueue_styles() {
     if (is_singular() || is_page()) {
@@ -256,7 +363,6 @@ function wpr_render_meta_box($post) {
     
     $dish_number = get_post_meta($post->ID, '_wpr_dish_number', true);
     $price = get_post_meta($post->ID, '_wpr_price', true);
-    $allergens = get_post_meta($post->ID, '_wpr_allergens', true);
     $vegan = get_post_meta($post->ID, '_wpr_vegan', true);
     $vegetarian = get_post_meta($post->ID, '_wpr_vegetarian', true);
     $settings = get_option('wpr_settings', array('currency_symbol' => '€'));
@@ -279,11 +385,6 @@ function wpr_render_meta_box($post) {
                 </span>
             </div>
         </div>
-        
-        <p>
-            <label><strong>Allergene:</strong></label><br>
-            <input type="text" name="wpr_allergens" value="<?php echo esc_attr($allergens); ?>" style="width: 100%; max-width: 500px;" placeholder="z.B. A, C, G, L">
-        </p>
         
         <div style="display: flex; gap: 15px; margin-top: 15px;">
             <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #f9f9f9; border-radius: 6px; cursor: pointer;">
@@ -310,9 +411,6 @@ function wpr_save_meta($post_id) {
     }
     if (isset($_POST['wpr_price'])) {
         update_post_meta($post_id, '_wpr_price', sanitize_text_field($_POST['wpr_price']));
-    }
-    if (isset($_POST['wpr_allergens'])) {
-        update_post_meta($post_id, '_wpr_allergens', sanitize_text_field($_POST['wpr_allergens']));
     }
     update_post_meta($post_id, '_wpr_vegetarian', isset($_POST['wpr_vegetarian']) ? '1' : '0');
     update_post_meta($post_id, '_wpr_vegan', isset($_POST['wpr_vegan']) ? '1' : '0');
@@ -415,7 +513,7 @@ function wpr_menu_shortcode($atts) {
                 <?php
                     $dish_number = get_post_meta(get_the_ID(), '_wpr_dish_number', true);
                     $price = get_post_meta(get_the_ID(), '_wpr_price', true);
-                    $allergens = get_post_meta(get_the_ID(), '_wpr_allergens', true);
+                    $allergens = wp_get_post_terms(get_the_ID(), 'wpr_allergen');
                     $vegan = get_post_meta(get_the_ID(), '_wpr_vegan', true);
                     $vegetarian = get_post_meta(get_the_ID(), '_wpr_vegetarian', true);
                     $has_image = has_post_thumbnail();
@@ -455,7 +553,7 @@ function wpr_menu_shortcode($atts) {
                             </div>
                         <?php endif; ?>
                         
-                        <?php if ($vegan || $vegetarian || $allergens) : ?>
+                        <?php if ($vegan || $vegetarian || !empty($allergens)) : ?>
                             <div class="wpr-menu-item-meta">
                                 <?php if ($vegan) : ?>
                                     <span class="wpr-badge wpr-badge-vegan">🌿 Vegan</span>
@@ -463,8 +561,19 @@ function wpr_menu_shortcode($atts) {
                                     <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
                                 <?php endif; ?>
                                 
-                                <?php if ($allergens) : ?>
-                                    <span class="wpr-allergens">Allergene: <strong><?php echo esc_html($allergens); ?></strong></span>
+                                <?php if (!empty($allergens) && !is_wp_error($allergens)) : ?>
+                                    <div class="wpr-allergens-badges">
+                                        <?php foreach ($allergens as $allergen) : 
+                                            $icon = get_term_meta($allergen->term_id, 'icon', true);
+                                        ?>
+                                            <span class="wpr-allergen-badge" title="<?php echo esc_attr($allergen->name); ?>">
+                                                <?php if ($icon) : ?>
+                                                    <?php echo esc_html($icon); ?>
+                                                <?php endif; ?>
+                                                <?php echo esc_html($allergen->name); ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
