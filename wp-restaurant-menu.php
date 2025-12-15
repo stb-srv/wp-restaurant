@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.4.1
+ * Version: 1.4.2
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.4.1');
+define('WP_RESTAURANT_MENU_VERSION', '1.4.2');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -35,7 +35,6 @@ function wpr_activate() {
             'show_search' => 'yes',
             'group_by_category' => 'yes',
             'grid_columns' => '2',
-            'use_placeholder' => 'yes',
         ));
     } else {
         $settings = get_option('wpr_settings');
@@ -44,9 +43,6 @@ function wpr_activate() {
         }
         if (!isset($settings['grid_columns'])) {
             $settings['grid_columns'] = '2';
-        }
-        if (!isset($settings['use_placeholder'])) {
-            $settings['use_placeholder'] = 'yes';
         }
         update_option('wpr_settings', $settings);
     }
@@ -65,10 +61,6 @@ function wpr_check_settings() {
         }
         if (!isset($settings['grid_columns'])) {
             $settings['grid_columns'] = '2';
-            $updated = true;
-        }
-        if (!isset($settings['use_placeholder'])) {
-            $settings['use_placeholder'] = 'yes';
             $updated = true;
         }
         if ($updated) {
@@ -174,7 +166,7 @@ function wpr_create_default_allergens() {
         'G' => array('name' => 'G - Milch/Laktose', 'icon' => '🥛'),
         'H' => array('name' => 'H - Schalenfrüchte', 'icon' => '🌰'),
         'L' => array('name' => 'L - Sellerie', 'icon' => '🥬'),
-        'M' => array('name' => 'M - Senf', 'icon' => '🌯'),
+        'M' => array('name' => 'M - Senf', 'icon' => '🍯'),
         'N' => array('name' => 'N - Sesamsamen', 'icon' => '🌾'),
         'O' => array('name' => 'O - Schwefeldioxid', 'icon' => '🧪'),
         'P' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
@@ -233,23 +225,6 @@ function wpr_create_default_ingredients() {
             }
         }
     }
-}
-
-function wpr_get_placeholder_image() {
-    $settings = get_option('wpr_settings', array('use_placeholder' => 'yes'));
-    if ($settings['use_placeholder'] !== 'yes') {
-        return '';
-    }
-    
-    // Inline SVG placeholders - funktionieren immer!
-    $placeholders = array(
-        // Food placeholder
-        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="40%25" font-family="Arial" font-size="48" fill="%23d97706" text-anchor="middle" dominant-baseline="middle"%3E🍽️%3C/text%3E%3Ctext x="50%25" y="60%25" font-family="Arial" font-size="18" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle"%3EGericht%3C/text%3E%3C/svg%3E',
-        // Drink placeholder
-        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23fef3c7" width="400" height="300"/%3E%3Ctext x="50%25" y="40%25" font-family="Arial" font-size="48" fill="%23f59e0b" text-anchor="middle" dominant-baseline="middle"%3E🍹%3C/text%3E%3Ctext x="50%25" y="60%25" font-family="Arial" font-size="18" fill="%23b45309" text-anchor="middle" dominant-baseline="middle"%3EGetränk%3C/text%3E%3C/svg%3E',
-    );
-    
-    return $placeholders[array_rand($placeholders)];
 }
 
 function wpr_enqueue_styles() {
@@ -314,7 +289,6 @@ function wpr_render_settings_page() {
             'show_search' => sanitize_text_field($_POST['show_search']),
             'group_by_category' => sanitize_text_field($_POST['group_by_category']),
             'grid_columns' => sanitize_text_field($_POST['grid_columns']),
-            'use_placeholder' => sanitize_text_field($_POST['use_placeholder']),
         );
         update_option('wpr_settings', $settings);
         echo '<div class="notice notice-success"><p><strong>Einstellungen gespeichert!</strong></p></div>';
@@ -328,7 +302,6 @@ function wpr_render_settings_page() {
         'show_search' => 'yes',
         'group_by_category' => 'yes',
         'grid_columns' => '2',
-        'use_placeholder' => 'yes',
     ));
     ?>
     <div class="wrap">
@@ -382,16 +355,6 @@ function wpr_render_settings_page() {
                                 <option value="top" <?php selected($settings['image_position'], 'top'); ?>>Oben (über dem Text)</option>
                                 <option value="left" <?php selected($settings['image_position'], 'left'); ?>>Links (neben dem Text)</option>
                             </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="use_placeholder">Platzhalter-Bilder</label></th>
-                        <td>
-                            <select name="use_placeholder" id="use_placeholder" style="min-width: 200px;">
-                                <option value="yes" <?php selected($settings['use_placeholder'], 'yes'); ?>>Ja, bei fehlenden Bildern anzeigen</option>
-                                <option value="no" <?php selected($settings['use_placeholder'], 'no'); ?>>Nein, keine Platzhalter</option>
-                            </select>
-                            <p class="description">Zeigt ein Icon-Platzhalter wenn kein Gericht-Bild hochgeladen wurde.</p>
                         </td>
                     </tr>
                 </table>
@@ -832,33 +795,26 @@ function wpr_render_single_item($item, $show_images, $image_position) {
     $item_categories = wp_get_post_terms($item->ID, 'wpr_category', array('fields' => 'slugs'));
     $cat_classes = is_array($item_categories) ? implode(' ', array_map(function($c) { return 'wpr-cat-' . $c; }, $item_categories)) : '';
     
-    $use_placeholder = !$has_image && $show_images;
-    $placeholder_url = $use_placeholder ? wpr_get_placeholder_image() : '';
-    
     ob_start();
     ?>
-    <div class="wpr-menu-item <?php echo ($image_position === 'left' && ($has_image || $use_placeholder)) ? 'wpr-has-image-left' : ''; ?> <?php echo ($image_position === 'top' && ($has_image || $use_placeholder)) ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
+    <div class="wpr-menu-item <?php echo ($image_position === 'left' && $has_image) ? 'wpr-has-image-left' : ''; ?> <?php echo ($image_position === 'top' && $has_image) ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
          data-title="<?php echo esc_attr(strtolower($item->post_title)); ?>" 
          data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags($item->post_content))); ?>" 
          data-number="<?php echo esc_attr($dish_number); ?>">
         
-        <?php if ($show_images && ($has_image || $use_placeholder)) : ?>
+        <?php if ($show_images && $has_image) : ?>
             <div class="wpr-menu-item-image">
                 <?php if ($dish_number) : ?>
                     <div class="wpr-dish-number-badge"><?php echo esc_html($dish_number); ?></div>
                 <?php endif; ?>
-                <?php if ($has_image) : ?>
-                    <?php echo get_the_post_thumbnail($item->ID, 'medium'); ?>
-                <?php elseif ($placeholder_url) : ?>
-                    <img src="<?php echo esc_url($placeholder_url); ?>" alt="<?php echo esc_attr($item->post_title); ?>" />
-                <?php endif; ?>
+                <?php echo get_the_post_thumbnail($item->ID, 'medium'); ?>
             </div>
         <?php endif; ?>
         
         <div class="wpr-menu-item-content">
             <div class="wpr-menu-item-header">
                 <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                    <?php if ($dish_number && (!$show_images || (!$has_image && !$use_placeholder))) : ?>
+                    <?php if ($dish_number && (!$show_images || !$has_image)) : ?>
                         <span class="wpr-dish-number-inline"><?php echo esc_html($dish_number); ?></span>
                     <?php endif; ?>
                     <h3 class="wpr-menu-item-title"><?php echo esc_html($item->post_title); ?></h3>
