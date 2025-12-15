@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.4.2
+ * Version: 1.5.0
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,11 +13,12 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.4.2');
+define('WP_RESTAURANT_MENU_VERSION', '1.5.0');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wpr-import-export.php';
+require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wpr-license.php';
 
 function wpr_activate() {
     wpr_register_post_type();
@@ -266,6 +267,18 @@ function wpr_add_settings_page() {
     );
 }
 add_action('admin_menu', 'wpr_add_settings_page');
+
+function wpr_add_license_page() {
+    add_submenu_page(
+        'edit.php?post_type=wpr_menu_item',
+        'Lizenz',
+        '🔑 Lizenz',
+        'manage_options',
+        'wpr-license',
+        array('WPR_License', 'render_page')
+    );
+}
+add_action('admin_menu', 'wpr_add_license_page');
 
 function wpr_add_import_export_page() {
     add_submenu_page(
@@ -570,6 +583,53 @@ function wpr_save_meta($post_id) {
     update_post_meta($post_id, '_wpr_vegan', isset($_POST['wpr_vegan']) ? '1' : '0');
 }
 add_action('save_post', 'wpr_save_meta');
+
+function wpr_check_item_limit_before_save($post_id) {
+    if (get_post_type($post_id) !== 'wpr_menu_item') return;
+    if (get_post_status($post_id) !== 'auto-draft' && get_post_status($post_id) !== 'draft') return;
+    
+    $license = WPR_License::get_license_info();
+    if ($license['valid']) return;
+    
+    $count = wp_count_posts('wpr_menu_item');
+    $total = $count->publish + $count->draft + $count->pending;
+    
+    if ($total >= $license['max_items']) {
+        wp_die(
+            '<h1>🔒 Limit erreicht</h1>' .
+            '<p>Sie haben das Maximum von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht.</p>' .
+            '<p><a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary">🔑 Jetzt Pro-Lizenz aktivieren</a></p>',
+            'Limit erreicht',
+            array('back_link' => true)
+        );
+    }
+}
+add_action('save_post', 'wpr_check_item_limit_before_save', 1);
+
+function wpr_admin_notices() {
+    $screen = get_current_screen();
+    if ($screen->post_type !== 'wpr_menu_item') return;
+    
+    $license = WPR_License::get_license_info();
+    if ($license['valid']) return;
+    
+    $count = wp_count_posts('wpr_menu_item');
+    $total = $count->publish + $count->draft + $count->pending;
+    $remaining = $license['max_items'] - $total;
+    
+    if ($remaining <= 5 && $remaining > 0) {
+        echo '<div class="notice notice-warning">';
+        echo '<p><strong>⚠️ Achtung:</strong> Sie haben noch <strong>' . $remaining . ' von ' . $license['max_items'] . ' Gerichten</strong> verfügbar. ';
+        echo '<a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '">Jetzt upgraden</a> für unbegrenzte Gerichte.</p>';
+        echo '</div>';
+    } elseif ($remaining <= 0) {
+        echo '<div class="notice notice-error">';
+        echo '<p><strong>🔒 Limit erreicht:</strong> Sie haben das Maximum von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht. ';
+        echo '<a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary" style="margin-left: 10px;">🔑 Pro-Lizenz aktivieren</a></p>';
+        echo '</div>';
+    }
+}
+add_action('admin_notices', 'wpr_admin_notices');
 
 function wpr_menu_shortcode($atts) {
     $atts = shortcode_atts(array(
