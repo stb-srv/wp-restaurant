@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.2.1
+ * Version: 1.3.0
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.2.1');
+define('WP_RESTAURANT_MENU_VERSION', '1.3.0');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -23,6 +23,7 @@ function wpr_activate() {
     wpr_register_post_type();
     wpr_register_taxonomies();
     wpr_create_default_allergens();
+    wpr_create_default_ingredients();
     flush_rewrite_rules();
     
     if (!get_option('wpr_settings')) {
@@ -35,7 +36,6 @@ function wpr_activate() {
             'group_by_category' => 'yes',
         ));
     } else {
-        // Update existing settings to include new option
         $settings = get_option('wpr_settings');
         if (!isset($settings['group_by_category'])) {
             $settings['group_by_category'] = 'yes';
@@ -47,7 +47,6 @@ function wpr_activate() {
 }
 register_activation_hook(__FILE__, 'wpr_activate');
 
-// Beim Plugin-Load das Setting hinzufügen falls es fehlt
 function wpr_check_settings() {
     $settings = get_option('wpr_settings');
     if ($settings && !isset($settings['group_by_category'])) {
@@ -121,7 +120,23 @@ function wpr_register_taxonomies() {
         'show_admin_column' => false,
         'public' => false,
         'rewrite' => false,
-        'meta_box_cb' => 'wpr_allergen_meta_box',
+        'meta_box_cb' => false,
+    ));
+    
+    register_taxonomy('wpr_ingredient', 'wpr_menu_item', array(
+        'labels' => array(
+            'name' => 'Zutaten',
+            'singular_name' => 'Zutat',
+            'add_new_item' => 'Neue Zutat hinzufügen',
+            'edit_item' => 'Zutat bearbeiten',
+            'menu_name' => 'Zutaten',
+        ),
+        'hierarchical' => false,
+        'show_ui' => true,
+        'show_admin_column' => false,
+        'public' => false,
+        'rewrite' => false,
+        'meta_box_cb' => false,
     ));
 }
 add_action('init', 'wpr_register_taxonomies');
@@ -157,57 +172,45 @@ function wpr_create_default_allergens() {
     }
 }
 
-function wpr_allergen_meta_box($post) {
-    $allergens = get_terms(array(
-        'taxonomy' => 'wpr_allergen',
-        'hide_empty' => false,
-        'orderby' => 'name',
-        'order' => 'ASC',
-    ));
+function wpr_create_default_ingredients() {
+    $ingredients = array(
+        'fleisch' => array('name' => 'Fleisch', 'icon' => '🥩'),
+        'rindfleisch' => array('name' => 'Rindfleisch', 'icon' => '🐄'),
+        'schweinefleisch' => array('name' => 'Schweinefleisch', 'icon' => '🐷'),
+        'huehnerfleisch' => array('name' => 'Hühnerfleisch', 'icon' => '🐔'),
+        'lammfleisch' => array('name' => 'Lammfleisch', 'icon' => '🐑'),
+        'fisch' => array('name' => 'Fisch', 'icon' => '🐟'),
+        'lachs' => array('name' => 'Lachs', 'icon' => '🐠'),
+        'thunfisch' => array('name' => 'Thunfisch', 'icon' => '🐟'),
+        'meeresfrüchte' => array('name' => 'Meeresfrüchte', 'icon' => '🦞'),
+        'garnelen' => array('name' => 'Garnelen', 'icon' => '🦐'),
+        'krebstiere' => array('name' => 'Krebstiere', 'icon' => '🦀'),
+        'muscheln' => array('name' => 'Muscheln', 'icon' => '🦪'),
+        'milchprodukte' => array('name' => 'Milchprodukte', 'icon' => '🥛'),
+        'käse' => array('name' => 'Käse', 'icon' => '🧀'),
+        'sahne' => array('name' => 'Sahne', 'icon' => '🥛'),
+        'eier' => array('name' => 'Eier', 'icon' => '🥚'),
+        'soja' => array('name' => 'Soja', 'icon' => '🫘'),
+        'tofu' => array('name' => 'Tofu', 'icon' => '🧊'),
+        'nüsse' => array('name' => 'Nüsse', 'icon' => '🥜'),
+        'erdnüsse' => array('name' => 'Erdnüsse', 'icon' => '🥜'),
+        'gluten' => array('name' => 'Gluten', 'icon' => '🌾'),
+        'weizen' => array('name' => 'Weizen', 'icon' => '🌾'),
+        'gemüse' => array('name' => 'Gemüse', 'icon' => '🥗'),
+        'pilze' => array('name' => 'Pilze', 'icon' => '🍄'),
+    );
     
-    $post_allergens = wp_get_post_terms($post->ID, 'wpr_allergen', array('fields' => 'ids'));
-    if (is_wp_error($post_allergens)) {
-        $post_allergens = array();
+    foreach ($ingredients as $slug => $data) {
+        if (!term_exists($slug, 'wpr_ingredient')) {
+            $term = wp_insert_term($data['name'], 'wpr_ingredient', array(
+                'slug' => $slug,
+            ));
+            
+            if (!is_wp_error($term)) {
+                add_term_meta($term['term_id'], 'icon', $data['icon'], true);
+            }
+        }
     }
-    ?>
-    <div class="wpr-allergen-meta-box" style="padding: 15px;">
-        <p style="margin-bottom: 15px; color: #666;">
-            Wähle alle zutreffenden Allergene für dieses Gericht:
-        </p>
-        
-        <?php if (empty($allergens) || is_wp_error($allergens)) : ?>
-            <p>
-                <em>Keine Allergene gefunden.</em>
-                <a href="<?php echo admin_url('edit-tags.php?taxonomy=wpr_allergen&post_type=wpr_menu_item'); ?>">
-                    Jetzt Allergene anlegen »
-                </a>
-            </p>
-        <?php else : ?>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
-                <?php foreach ($allergens as $allergen) : 
-                    $icon = get_term_meta($allergen->term_id, 'icon', true);
-                ?>
-                    <label style="display: flex; align-items: center; gap: 8px; padding: 10px; background: #f9f9f9; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer; transition: all 0.2s;" 
-                           class="wpr-allergen-checkbox"
-                           onmouseover="this.style.borderColor='#d97706'; this.style.background='#fff';" 
-                           onmouseout="this.style.borderColor='#e5e7eb'; this.style.background='#f9f9f9';">
-                        <input 
-                            type="checkbox" 
-                            name="tax_input[wpr_allergen][]" 
-                            value="<?php echo esc_attr($allergen->term_id); ?>"
-                            <?php checked(in_array($allergen->term_id, $post_allergens)); ?>
-                            style="margin: 0;"
-                        />
-                        <?php if ($icon) : ?>
-                            <span style="font-size: 20px;"><?php echo esc_html($icon); ?></span>
-                        <?php endif; ?>
-                        <strong><?php echo esc_html($allergen->name); ?></strong>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
-    <?php
 }
 
 function wpr_enqueue_styles() {
@@ -386,6 +389,8 @@ function wpr_format_price($price) {
 
 function wpr_add_meta_boxes() {
     add_meta_box('wpr_details', 'Gericht-Details', 'wpr_render_meta_box', 'wpr_menu_item', 'normal', 'high');
+    add_meta_box('wpr_allergens', 'Allergene', 'wpr_allergen_meta_box', 'wpr_menu_item', 'side', 'default');
+    add_meta_box('wpr_ingredients', 'Enthaltene Zutaten', 'wpr_ingredient_meta_box', 'wpr_menu_item', 'side', 'default');
 }
 add_action('add_meta_boxes', 'wpr_add_meta_boxes');
 
@@ -417,17 +422,108 @@ function wpr_render_meta_box($post) {
             </div>
         </div>
         
-        <div style="display: flex; gap: 15px; margin-top: 15px;">
-            <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #f9f9f9; border-radius: 6px; cursor: pointer;">
-                <input type="checkbox" name="wpr_vegetarian" value="1" <?php checked($vegetarian, '1'); ?>>
-                <span>🌱 Vegetarisch</span>
-            </label>
-            
-            <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #f9f9f9; border-radius: 6px; cursor: pointer;">
-                <input type="checkbox" name="wpr_vegan" value="1" <?php checked($vegan, '1'); ?>>
-                <span>🌿 Vegan</span>
-            </label>
+        <div style="padding: 15px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <label style="font-weight: 600; margin-bottom: 10px; display: block; color: #374151;">Ernährungsweise:</label>
+            <div style="display: flex; gap: 15px;">
+                <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #fff; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+                    <input type="checkbox" name="wpr_vegetarian" value="1" <?php checked($vegetarian, '1'); ?>>
+                    <span>🌱 Vegetarisch</span>
+                </label>
+                
+                <label style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; background: #fff; border: 2px solid #e5e7eb; border-radius: 6px; cursor: pointer;">
+                    <input type="checkbox" name="wpr_vegan" value="1" <?php checked($vegan, '1'); ?>>
+                    <span>🌿 Vegan</span>
+                </label>
+            </div>
         </div>
+    </div>
+    <?php
+}
+
+function wpr_allergen_meta_box($post) {
+    $allergens = get_terms(array(
+        'taxonomy' => 'wpr_allergen',
+        'hide_empty' => false,
+        'orderby' => 'name',
+        'order' => 'ASC',
+    ));
+    
+    $post_allergens = wp_get_post_terms($post->ID, 'wpr_allergen', array('fields' => 'ids'));
+    if (is_wp_error($post_allergens)) {
+        $post_allergens = array();
+    }
+    ?>
+    <div style="padding: 10px;">
+        <?php if (empty($allergens) || is_wp_error($allergens)) : ?>
+            <p style="color: #666; font-size: 13px;">Keine Allergene gefunden.</p>
+        <?php else : ?>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <?php foreach ($allergens as $allergen) : 
+                    $icon = get_term_meta($allergen->term_id, 'icon', true);
+                ?>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 5px; background: #f9fafb; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+                           onmouseover="this.style.background='#f3f4f6';" 
+                           onmouseout="this.style.background='#f9fafb';">
+                        <input 
+                            type="checkbox" 
+                            name="tax_input[wpr_allergen][]" 
+                            value="<?php echo esc_attr($allergen->term_id); ?>"
+                            <?php checked(in_array($allergen->term_id, $post_allergens)); ?>
+                        />
+                        <?php if ($icon) : ?>
+                            <span style="font-size: 16px;"><?php echo esc_html($icon); ?></span>
+                        <?php endif; ?>
+                        <span style="font-size: 13px;"><?php echo esc_html($allergen->name); ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
+function wpr_ingredient_meta_box($post) {
+    $ingredients = get_terms(array(
+        'taxonomy' => 'wpr_ingredient',
+        'hide_empty' => false,
+        'orderby' => 'name',
+        'order' => 'ASC',
+    ));
+    
+    $post_ingredients = wp_get_post_terms($post->ID, 'wpr_ingredient', array('fields' => 'ids'));
+    if (is_wp_error($post_ingredients)) {
+        $post_ingredients = array();
+    }
+    ?>
+    <div style="padding: 10px;">
+        <p style="color: #666; font-size: 13px; margin-bottom: 10px;">
+            Wähle alle enthaltenen Hauptzutaten:
+        </p>
+        
+        <?php if (empty($ingredients) || is_wp_error($ingredients)) : ?>
+            <p style="color: #666; font-size: 13px;">Keine Zutaten gefunden.</p>
+        <?php else : ?>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <?php foreach ($ingredients as $ingredient) : 
+                    $icon = get_term_meta($ingredient->term_id, 'icon', true);
+                ?>
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 5px; background: #f9fafb; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+                           onmouseover="this.style.background='#f3f4f6';" 
+                           onmouseout="this.style.background='#f9fafb';">
+                        <input 
+                            type="checkbox" 
+                            name="tax_input[wpr_ingredient][]" 
+                            value="<?php echo esc_attr($ingredient->term_id); ?>"
+                            <?php checked(in_array($ingredient->term_id, $post_ingredients)); ?>
+                        />
+                        <?php if ($icon) : ?>
+                            <span style="font-size: 16px;"><?php echo esc_html($icon); ?></span>
+                        <?php endif; ?>
+                        <span style="font-size: 13px; font-weight: 500;"><?php echo esc_html($ingredient->name); ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
     <?php
 }
@@ -468,7 +564,6 @@ function wpr_menu_shortcode($atts) {
     $group_by_category = isset($settings['group_by_category']) ? $settings['group_by_category'] === 'yes' : true;
     $columns = max(1, min(3, intval($atts['columns'])));
     
-    // Hole alle Kategorien für die Suche
     $all_categories = get_terms(array(
         'taxonomy' => 'wpr_category',
         'hide_empty' => true,
@@ -553,7 +648,6 @@ function wpr_render_accordion_menu($atts, $show_images, $image_position) {
         return '<p class="wpr-no-items">Keine Gerichte gefunden.</p>';
     }
     
-    // Gruppiere Gerichte nach Kategorien
     $categories = get_terms(array(
         'taxonomy' => 'wpr_category',
         'hide_empty' => true,
@@ -665,6 +759,7 @@ function wpr_render_single_item($item, $show_images, $image_position) {
     $dish_number = get_post_meta($item->ID, '_wpr_dish_number', true);
     $price = get_post_meta($item->ID, '_wpr_price', true);
     $allergens = wp_get_post_terms($item->ID, 'wpr_allergen');
+    $ingredients = wp_get_post_terms($item->ID, 'wpr_ingredient');
     $vegan = get_post_meta($item->ID, '_wpr_vegan', true);
     $vegetarian = get_post_meta($item->ID, '_wpr_vegetarian', true);
     $has_image = has_post_thumbnail($item->ID);
@@ -703,6 +798,21 @@ function wpr_render_single_item($item, $show_images, $image_position) {
             <?php if (!empty($item->post_content)) : ?>
                 <div class="wpr-menu-item-description">
                     <?php echo wpautop($item->post_content); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($ingredients) && !is_wp_error($ingredients)) : ?>
+                <div class="wpr-ingredients-row">
+                    <?php foreach ($ingredients as $ingredient) : 
+                        $icon = get_term_meta($ingredient->term_id, 'icon', true);
+                    ?>
+                        <span class="wpr-ingredient-badge" title="<?php echo esc_attr($ingredient->name); ?>">
+                            <?php if ($icon) : ?>
+                                <span class="wpr-ingredient-icon"><?php echo esc_html($icon); ?></span>
+                            <?php endif; ?>
+                            <?php echo esc_html($ingredient->name); ?>
+                        </span>
+                    <?php endforeach; ?>
                 </div>
             <?php endif; ?>
             

@@ -149,6 +149,42 @@
     flex-shrink: 0;
 }
 
+/* Ingredients Row */
+.wpr-ingredients-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+    padding: 10px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.wpr-ingredient-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: #fff;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.wpr-ingredient-badge:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+}
+
+.wpr-ingredient-icon {
+    font-size: 1.1em;
+    line-height: 1;
+}
+
 /* Badge Styles */
 .wpr-meta-badges {
     display: flex;
@@ -181,14 +217,14 @@
 }
 
 .wpr-badge-allergen {
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
     cursor: help;
 }
 
 .wpr-badge-allergen:hover {
-    background: #fde68a;
+    background: #fca5a5;
     transform: translateY(-1px);
 }
 
@@ -355,7 +391,7 @@
     gap: 24px;
 }
 
-/* Menu Grid (alte Ansicht) */
+/* Menu Grid */
 .wpr-menu-grid {
     display: grid;
     gap: 24px;
