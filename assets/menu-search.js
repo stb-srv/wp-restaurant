@@ -1,104 +1,152 @@
 /**
- * WP Restaurant Menu - Live Search & Filter
+ * WP Restaurant Menu - Fullscreen Overlay Search
  */
 (function() {
     'use strict';
     
-    // Warte bis DOM geladen ist
     document.addEventListener('DOMContentLoaded', function() {
-        initMenuSearch();
+        initFullscreenSearch();
     });
     
-    function initMenuSearch() {
+    function initFullscreenSearch() {
         const searchInput = document.querySelector('.wpr-search-input');
-        const clearBtn = document.querySelector('.wpr-search-clear');
-        const menuItems = document.querySelectorAll('.wpr-menu-item');
-        const resultsDiv = document.querySelector('.wpr-search-results');
+        const searchOverlay = document.querySelector('.wpr-search-overlay');
+        const closeBtn = document.querySelector('.wpr-search-close');
+        const menuGrid = document.querySelector('.wpr-menu-grid');
+        const resultsGrid = document.querySelector('.wpr-search-results-grid');
         const resultsCount = document.querySelector('.wpr-results-count');
         const filterBtns = document.querySelectorAll('.wpr-filter-btn');
         
-        if (!searchInput || !menuItems.length) return;
+        if (!searchInput || !searchOverlay) return;
         
+        const allMenuItems = Array.from(document.querySelectorAll('.wpr-menu-item'));
         let currentCategory = 'all';
         
-        // Live-Suche
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase().trim();
-            
-            // Clear-Button anzeigen/verstecken
-            if (clearBtn) {
-                clearBtn.style.display = searchTerm ? 'block' : 'none';
-            }
-            
-            filterItems(searchTerm, currentCategory);
+        // Klick auf Suchfeld öffnet Overlay
+        searchInput.addEventListener('click', function(e) {
+            e.preventDefault();
+            openSearchOverlay();
         });
         
-        // Clear-Button
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                this.style.display = 'none';
-                filterItems('', currentCategory);
-                searchInput.focus();
+        // Schließen-Button
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeSearchOverlay);
+        }
+        
+        // ESC-Taste zum Schließen
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && searchOverlay.classList.contains('active')) {
+                closeSearchOverlay();
+            }
+        });
+        
+        // Klick außerhalb schließt
+        searchOverlay.addEventListener('click', function(e) {
+            if (e.target === searchOverlay) {
+                closeSearchOverlay();
+            }
+        });
+        
+        // Live-Suche im Overlay
+        const overlayInput = searchOverlay.querySelector('.wpr-overlay-search-input');
+        if (overlayInput) {
+            overlayInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                filterAndDisplayResults(searchTerm, currentCategory);
             });
         }
         
         // Kategorie-Filter
         filterBtns.forEach(function(btn) {
             btn.addEventListener('click', function() {
-                // Aktive Klasse umschalten
                 filterBtns.forEach(function(b) { b.classList.remove('active'); });
                 this.classList.add('active');
-                
                 currentCategory = this.dataset.category;
-                filterItems(searchInput.value.toLowerCase().trim(), currentCategory);
+                
+                const searchTerm = overlayInput ? overlayInput.value.toLowerCase().trim() : '';
+                filterAndDisplayResults(searchTerm, currentCategory);
             });
         });
         
-        // Filter-Funktion
-        function filterItems(searchTerm, category) {
+        function openSearchOverlay() {
+            searchOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            setTimeout(function() {
+                if (overlayInput) {
+                    overlayInput.focus();
+                }
+            }, 300);
+            
+            // Initial alle Gerichte anzeigen
+            filterAndDisplayResults('', 'all');
+        }
+        
+        function closeSearchOverlay() {
+            searchOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+            if (overlayInput) {
+                overlayInput.value = '';
+            }
+            currentCategory = 'all';
+            filterBtns.forEach(function(btn) {
+                btn.classList.remove('active');
+                if (btn.dataset.category === 'all') {
+                    btn.classList.add('active');
+                }
+            });
+        }
+        
+        function filterAndDisplayResults(searchTerm, category) {
+            if (!resultsGrid) return;
+            
+            // Leere bisherige Ergebnisse
+            resultsGrid.innerHTML = '';
+            
             let visibleCount = 0;
             
-            menuItems.forEach(function(item) {
+            allMenuItems.forEach(function(item) {
                 const title = item.dataset.title || '';
                 const description = item.dataset.description || '';
                 
-                // Suchfilter
                 const matchesSearch = !searchTerm || 
                     title.includes(searchTerm) || 
                     description.includes(searchTerm);
                 
-                // Kategorie-Filter
                 const matchesCategory = category === 'all' || 
                     item.classList.contains('wpr-cat-' + category);
                 
-                // Anzeigen/Verstecken mit Animation
                 if (matchesSearch && matchesCategory) {
-                    item.style.display = '';
-                    item.style.animation = 'wprFadeIn 0.3s ease-in';
+                    const clonedItem = item.cloneNode(true);
+                    clonedItem.style.animation = 'wprFadeIn 0.3s ease-in';
+                    resultsGrid.appendChild(clonedItem);
                     visibleCount++;
-                } else {
-                    item.style.display = 'none';
                 }
             });
             
-            // Ergebnis-Anzeige
-            if (resultsDiv && resultsCount) {
-                if (searchTerm || category !== 'all') {
-                    resultsDiv.style.display = 'block';
-                    resultsCount.textContent = visibleCount + ' Gericht' + (visibleCount !== 1 ? 'e' : '') + ' gefunden';
+            // Ergebnis-Zähler aktualisieren
+            if (resultsCount) {
+                if (searchTerm) {
+                    resultsCount.textContent = visibleCount + ' Gericht' + (visibleCount !== 1 ? 'e' : '') + ' gefunden für "' + searchTerm + '"';
+                } else if (category !== 'all') {
+                    resultsCount.textContent = visibleCount + ' Gericht' + (visibleCount !== 1 ? 'e' : '') + ' in dieser Kategorie';
                 } else {
-                    resultsDiv.style.display = 'none';
+                    resultsCount.textContent = visibleCount + ' Gericht' + (visibleCount !== 1 ? 'e' : '') + ' verfügbar';
                 }
+            }
+            
+            // Keine Ergebnisse Meldung
+            if (visibleCount === 0) {
+                resultsGrid.innerHTML = '<div class="wpr-no-results"><p>🔍 Keine Gerichte gefunden</p><p class="wpr-no-results-hint">Versuche einen anderen Suchbegriff oder wähle eine andere Kategorie.</p></div>';
             }
         }
     }
     
-    // CSS Animation hinzufügen
+    // CSS Animation
     const style = document.createElement('style');
     style.textContent = `
         @keyframes wprFadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
     `;
