@@ -20,6 +20,7 @@ class WP_Restaurant_Menu_Activator {
      *
      * Führt folgende Aufgaben aus:
      * - Erstellt Standard-Kategorien
+     * - Erstellt Standard-Menükarten
      * - Setzt Standardoptionen
      * - Flush Rewrite Rules für Custom Post Type
      */
@@ -32,6 +33,9 @@ class WP_Restaurant_Menu_Activator {
 
         // Standard-Kategorien erstellen
         self::create_default_categories();
+
+        // Standard-Menükarten erstellen
+        self::create_default_menus();
 
         // Plugin-Version in Datenbank speichern
         add_option('wp_restaurant_menu_version', WP_RESTAURANT_MENU_VERSION);
@@ -52,13 +56,18 @@ class WP_Restaurant_Menu_Activator {
      */
     private static function register_temp_post_type() {
         register_post_type('restaurant_menu_item', array(
-            'public'  => true,
-            'rewrite' => array('slug' => 'menu-item'),
+            'public'  => false,
+            'show_ui' => true,
         ));
         
         register_taxonomy('menu_category', 'restaurant_menu_item', array(
-            'public'  => true,
-            'rewrite' => array('slug' => 'menu-kategorie'),
+            'public'  => false,
+            'show_ui' => true,
+        ));
+
+        register_taxonomy('menu_list', 'restaurant_menu_item', array(
+            'public'  => false,
+            'show_ui' => true,
         ));
     }
 
@@ -97,5 +106,14 @@ class WP_Restaurant_Menu_Activator {
                 }
             }
         }
+    }
+
+    /**
+     * Erstelle Standard-Menükarten bei Aktivierung
+     */
+    private static function create_default_menus() {
+        // Lade die Menüs-Klasse
+        require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wp-restaurant-menu-menus.php';
+        WP_Restaurant_Menu_Menus::create_default_menus();
     }
 }

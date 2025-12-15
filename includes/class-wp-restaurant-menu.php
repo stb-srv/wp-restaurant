@@ -48,6 +48,7 @@ class WP_Restaurant_Menu {
         $this->define_admin_hooks();
         $this->define_public_hooks();
         $this->register_custom_post_type();
+        $this->init_pdf_export();
     }
 
     /**
@@ -66,6 +67,13 @@ class WP_Restaurant_Menu {
         // Public-spezifische Hooks
         require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'public/class-wp-restaurant-menu-public.php';
 
+        // Menü-Karten Verwaltung
+        require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wp-restaurant-menu-menus.php';
+
+        // PDF Export
+        require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wp-restaurant-menu-pdf.php';
+        require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wp-restaurant-menu-pdf-admin.php';
+
         $this->loader = new WP_Restaurant_Menu_Loader();
     }
 
@@ -83,10 +91,14 @@ class WP_Restaurant_Menu {
     private function register_custom_post_type() {
         $this->loader->add_action('init', $this, 'register_menu_item_post_type');
         $this->loader->add_action('init', $this, 'register_menu_taxonomies');
+        
+        // Registriere Menü-Karten Taxonomie
+        $this->loader->add_action('init', array('WP_Restaurant_Menu_Menus', 'register'));
     }
 
     /**
      * Registriere den Custom Post Type für Menüpunkte
+     * WICHTIG: public = false, damit keine Frontend-URLs generiert werden
      */
     public function register_menu_item_post_type() {
         $labels = array(
@@ -101,23 +113,24 @@ class WP_Restaurant_Menu {
             'search_items'       => __('Gerichte durchsuchen', 'wp-restaurant-menu'),
             'not_found'          => __('Keine Gerichte gefunden', 'wp-restaurant-menu'),
             'not_found_in_trash' => __('Keine Gerichte im Papierkorb', 'wp-restaurant-menu'),
+            'all_items'          => __('Alle Gerichte', 'wp-restaurant-menu'),
         );
 
         $args = array(
             'labels'              => $labels,
-            'public'              => true,
-            'publicly_queryable'  => true,
-            'show_ui'             => true,
-            'show_in_menu'        => true,
-            'query_var'           => true,
-            'rewrite'             => array('slug' => 'menu-item'),
+            'public'              => false,  // Keine öffentliche Ansicht
+            'publicly_queryable'  => false,  // Keine Frontend-Abfragen
+            'show_ui'             => true,   // Zeige im Admin
+            'show_in_menu'        => true,   // Zeige im Admin-Menü
+            'query_var'           => false,  // Keine Query-Variablen
+            'rewrite'             => false,  // Keine Permalinks
             'capability_type'     => 'post',
-            'has_archive'         => true,
+            'has_archive'         => false,  // Kein Archiv
             'hierarchical'        => false,
             'menu_position'       => 20,
             'menu_icon'           => 'dashicons-food',
-            'supports'            => array('title', 'editor', 'thumbnail', 'excerpt'),
-            'show_in_rest'        => true, // Gutenberg-Support
+            'supports'            => array('title', 'editor', 'thumbnail'),
+            'show_in_rest'        => true,   // Gutenberg-Support
         );
 
         register_post_type('restaurant_menu_item', $args);
@@ -145,9 +158,10 @@ class WP_Restaurant_Menu {
             'labels'            => $category_labels,
             'show_ui'           => true,
             'show_admin_column' => true,
-            'query_var'         => true,
-            'rewrite'           => array('slug' => 'menu-kategorie'),
+            'query_var'         => false,
+            'rewrite'           => false,
             'show_in_rest'      => true,
+            'public'            => false,  // Nicht öffentlich
         ));
 
         // Tags-Taxonomie
@@ -168,9 +182,10 @@ class WP_Restaurant_Menu {
             'labels'            => $tag_labels,
             'show_ui'           => true,
             'show_admin_column' => true,
-            'query_var'         => true,
-            'rewrite'           => array('slug' => 'menu-tag'),
+            'query_var'         => false,
+            'rewrite'           => false,
             'show_in_rest'      => true,
+            'public'            => false,  // Nicht öffentlich
         ));
     }
 
@@ -187,6 +202,19 @@ class WP_Restaurant_Menu {
         // Meta-Boxen hinzufügen
         $this->loader->add_action('add_meta_boxes', $plugin_admin, 'add_menu_item_meta_boxes');
         $this->loader->add_action('save_post', $plugin_admin, 'save_menu_item_meta');
+
+        // Verhindere Frontend-Weiterleitung bei "Gericht ansehen"
+        $this->loader->add_filter('post_type_link', $this, 'disable_view_link', 10, 2);
+    }
+
+    /**
+     * Deaktiviere "Gericht ansehen" Link
+     */
+    public function disable_view_link($permalink, $post) {
+        if ($post->post_type === 'restaurant_menu_item') {
+            return '';
+        }
+        return $permalink;
     }
 
     /**
@@ -201,6 +229,14 @@ class WP_Restaurant_Menu {
         
         // Shortcode registrieren
         $this->loader->add_shortcode('restaurant_menu', $plugin_public, 'restaurant_menu_shortcode');
+    }
+
+    /**
+     * Initialisiere PDF-Export
+     */
+    private function init_pdf_export() {
+        WP_Restaurant_Menu_PDF::init();
+        WP_Restaurant_Menu_PDF_Admin::init();
     }
 
     /**
