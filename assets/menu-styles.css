@@ -98,25 +98,32 @@
 
 .wpr-accordion-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 0;
+    gap: 20px;
     padding: 20px;
 }
 
-.wpr-accordion-grid .wpr-menu-item {
-    border-radius: 0;
-    border: none;
-    border-bottom: 1px solid #f0f0f0;
-    box-shadow: none;
+.wpr-accordion-grid.wpr-grid-columns-1 {
+    grid-template-columns: 1fr;
 }
 
-.wpr-accordion-grid .wpr-menu-item:last-child {
-    border-bottom: none;
+.wpr-accordion-grid.wpr-grid-columns-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.wpr-accordion-grid.wpr-grid-columns-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.wpr-accordion-grid .wpr-menu-item {
+    border-radius: 8px;
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .wpr-accordion-grid .wpr-menu-item:hover {
-    transform: none;
-    background: #f9fafb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #fff;
 }
 
 /* Dish Number Badge */
@@ -543,6 +550,7 @@
 /* Responsive */
 @media (max-width: 992px) {
     .wpr-columns-3 { grid-template-columns: repeat(2, 1fr); }
+    .wpr-accordion-grid.wpr-grid-columns-3 { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -591,6 +599,8 @@
     }
     
     .wpr-columns-2, .wpr-columns-3 { grid-template-columns: 1fr; }
+    .wpr-accordion-grid.wpr-grid-columns-2,
+    .wpr-accordion-grid.wpr-grid-columns-3 { grid-template-columns: 1fr; }
     .wpr-menu-item.wpr-has-image-left { grid-template-columns: 1fr; }
     .wpr-menu-item.wpr-has-image-left .wpr-menu-item-image { width: 100%; height: 180px; }
     .wpr-accordion-header { padding: 16px; font-size: 16px; }

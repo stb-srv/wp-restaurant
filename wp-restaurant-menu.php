@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.3.0');
+define('WP_RESTAURANT_MENU_VERSION', '1.4.0');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -34,13 +34,21 @@ function wpr_activate() {
             'image_position' => 'left',
             'show_search' => 'yes',
             'group_by_category' => 'yes',
+            'grid_columns' => '2',
+            'use_placeholder' => 'yes',
         ));
     } else {
         $settings = get_option('wpr_settings');
         if (!isset($settings['group_by_category'])) {
             $settings['group_by_category'] = 'yes';
-            update_option('wpr_settings', $settings);
         }
+        if (!isset($settings['grid_columns'])) {
+            $settings['grid_columns'] = '2';
+        }
+        if (!isset($settings['use_placeholder'])) {
+            $settings['use_placeholder'] = 'yes';
+        }
+        update_option('wpr_settings', $settings);
     }
     
     add_option('wpr_version', WP_RESTAURANT_MENU_VERSION);
@@ -49,9 +57,23 @@ register_activation_hook(__FILE__, 'wpr_activate');
 
 function wpr_check_settings() {
     $settings = get_option('wpr_settings');
-    if ($settings && !isset($settings['group_by_category'])) {
-        $settings['group_by_category'] = 'yes';
-        update_option('wpr_settings', $settings);
+    if ($settings) {
+        $updated = false;
+        if (!isset($settings['group_by_category'])) {
+            $settings['group_by_category'] = 'yes';
+            $updated = true;
+        }
+        if (!isset($settings['grid_columns'])) {
+            $settings['grid_columns'] = '2';
+            $updated = true;
+        }
+        if (!isset($settings['use_placeholder'])) {
+            $settings['use_placeholder'] = 'yes';
+            $updated = true;
+        }
+        if ($updated) {
+            update_option('wpr_settings', $settings);
+        }
     }
 }
 add_action('plugins_loaded', 'wpr_check_settings');
@@ -182,21 +204,21 @@ function wpr_create_default_ingredients() {
         'fisch' => array('name' => 'Fisch', 'icon' => '🐟'),
         'lachs' => array('name' => 'Lachs', 'icon' => '🐠'),
         'thunfisch' => array('name' => 'Thunfisch', 'icon' => '🐟'),
-        'meeresfrüchte' => array('name' => 'Meeresfrüchte', 'icon' => '🦞'),
+        'meeresfruechte' => array('name' => 'Meeresfrüchte', 'icon' => '🦞'),
         'garnelen' => array('name' => 'Garnelen', 'icon' => '🦐'),
         'krebstiere' => array('name' => 'Krebstiere', 'icon' => '🦀'),
         'muscheln' => array('name' => 'Muscheln', 'icon' => '🦪'),
         'milchprodukte' => array('name' => 'Milchprodukte', 'icon' => '🥛'),
-        'käse' => array('name' => 'Käse', 'icon' => '🧀'),
+        'kaese' => array('name' => 'Käse', 'icon' => '🧀'),
         'sahne' => array('name' => 'Sahne', 'icon' => '🥛'),
         'eier' => array('name' => 'Eier', 'icon' => '🥚'),
         'soja' => array('name' => 'Soja', 'icon' => '🫘'),
         'tofu' => array('name' => 'Tofu', 'icon' => '🧊'),
-        'nüsse' => array('name' => 'Nüsse', 'icon' => '🥜'),
-        'erdnüsse' => array('name' => 'Erdnüsse', 'icon' => '🥜'),
+        'nuesse' => array('name' => 'Nüsse', 'icon' => '🥜'),
+        'erdnuesse' => array('name' => 'Erdnüsse', 'icon' => '🥜'),
         'gluten' => array('name' => 'Gluten', 'icon' => '🌾'),
         'weizen' => array('name' => 'Weizen', 'icon' => '🌾'),
-        'gemüse' => array('name' => 'Gemüse', 'icon' => '🥗'),
+        'gemuese' => array('name' => 'Gemüse', 'icon' => '🥗'),
         'pilze' => array('name' => 'Pilze', 'icon' => '🍄'),
     );
     
@@ -211,6 +233,20 @@ function wpr_create_default_ingredients() {
             }
         }
     }
+}
+
+function wpr_get_placeholder_image() {
+    $settings = get_option('wpr_settings', array('use_placeholder' => 'yes'));
+    if ($settings['use_placeholder'] !== 'yes') {
+        return '';
+    }
+    
+    $placeholders = array(
+        WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/placeholder-food.jpg',
+        WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/placeholder-drink.jpg',
+    );
+    
+    return $placeholders[array_rand($placeholders)];
 }
 
 function wpr_enqueue_styles() {
@@ -274,6 +310,8 @@ function wpr_render_settings_page() {
             'image_position' => sanitize_text_field($_POST['image_position']),
             'show_search' => sanitize_text_field($_POST['show_search']),
             'group_by_category' => sanitize_text_field($_POST['group_by_category']),
+            'grid_columns' => sanitize_text_field($_POST['grid_columns']),
+            'use_placeholder' => sanitize_text_field($_POST['use_placeholder']),
         );
         update_option('wpr_settings', $settings);
         echo '<div class="notice notice-success"><p><strong>Einstellungen gespeichert!</strong></p></div>';
@@ -286,6 +324,8 @@ function wpr_render_settings_page() {
         'image_position' => 'left',
         'show_search' => 'yes',
         'group_by_category' => 'yes',
+        'grid_columns' => '2',
+        'use_placeholder' => 'yes',
     ));
     ?>
     <div class="wrap">
@@ -341,9 +381,19 @@ function wpr_render_settings_page() {
                             </select>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row"><label for="use_placeholder">Platzhalter-Bilder</label></th>
+                        <td>
+                            <select name="use_placeholder" id="use_placeholder" style="min-width: 200px;">
+                                <option value="yes" <?php selected($settings['use_placeholder'], 'yes'); ?>>Ja, bei fehlenden Bildern anzeigen</option>
+                                <option value="no" <?php selected($settings['use_placeholder'], 'no'); ?>>Nein, keine Platzhalter</option>
+                            </select>
+                            <p class="description">Zeigt ein zufälliges Beispielbild wenn kein Gericht-Bild hochgeladen wurde.</p>
+                        </td>
+                    </tr>
                 </table>
                 
-                <h2>Anzeige-Einstellungen</h2>
+                <h2>Layout-Einstellungen</h2>
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="show_search">Suchfunktion anzeigen</label></th>
@@ -359,9 +409,20 @@ function wpr_render_settings_page() {
                         <td>
                             <select name="group_by_category" id="group_by_category" style="min-width: 200px;">
                                 <option value="yes" <?php selected($settings['group_by_category'], 'yes'); ?>>Ja, Accordion-Ansicht</option>
-                                <option value="no" <?php selected($settings['group_by_category'], 'no'); ?>>Nein, alle zusammen</option>
+                                <option value="no" <?php selected($settings['group_by_category'], 'no'); ?>>Nein, Grid-Ansicht</option>
                             </select>
                             <p class="description">Aktiviert aufklappbare Kategorien für eine übersichtliche Menüdarstellung.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="grid_columns">Spalten im Grid</label></th>
+                        <td>
+                            <select name="grid_columns" id="grid_columns" style="min-width: 200px;">
+                                <option value="1" <?php selected($settings['grid_columns'], '1'); ?>>1 Spalte (vertikal)</option>
+                                <option value="2" <?php selected($settings['grid_columns'], '2'); ?>>2 Spalten (Desktop)</option>
+                                <option value="3" <?php selected($settings['grid_columns'], '3'); ?>>3 Spalten (breit)</option>
+                            </select>
+                            <p class="description">Anzahl der Spalten auf Desktop. Mobile geräte zeigen immer 1 Spalte.</p>
                         </td>
                     </tr>
                 </table>
@@ -548,7 +609,7 @@ function wpr_menu_shortcode($atts) {
     $atts = shortcode_atts(array(
         'menu' => '',
         'category' => '',
-        'columns' => '1',
+        'columns' => '',
     ), $atts);
     
     $settings = get_option('wpr_settings', array(
@@ -556,13 +617,15 @@ function wpr_menu_shortcode($atts) {
         'image_position' => 'left',
         'show_search' => 'yes',
         'group_by_category' => 'yes',
+        'grid_columns' => '2',
     ));
     
     $show_images = $settings['show_images'] === 'yes';
     $image_position = $settings['image_position'];
     $show_search = $settings['show_search'] === 'yes';
     $group_by_category = isset($settings['group_by_category']) ? $settings['group_by_category'] === 'yes' : true;
-    $columns = max(1, min(3, intval($atts['columns'])));
+    
+    $columns = !empty($atts['columns']) ? max(1, min(3, intval($atts['columns']))) : intval($settings['grid_columns']);
     
     $all_categories = get_terms(array(
         'taxonomy' => 'wpr_category',
@@ -616,7 +679,7 @@ function wpr_menu_shortcode($atts) {
         <?php endif; ?>
         
         <?php if ($group_by_category) : ?>
-            <?php echo wpr_render_accordion_menu($atts, $show_images, $image_position); ?>
+            <?php echo wpr_render_accordion_menu($atts, $show_images, $image_position, $columns); ?>
         <?php else : ?>
             <?php echo wpr_render_grid_menu($atts, $show_images, $image_position, $columns); ?>
         <?php endif; ?>
@@ -625,7 +688,7 @@ function wpr_menu_shortcode($atts) {
     return ob_get_clean();
 }
 
-function wpr_render_accordion_menu($atts, $show_images, $image_position) {
+function wpr_render_accordion_menu($atts, $show_images, $image_position, $columns) {
     $args = array(
         'post_type' => 'wpr_menu_item',
         'posts_per_page' => -1,
@@ -654,7 +717,7 @@ function wpr_render_accordion_menu($atts, $show_images, $image_position) {
     ));
     
     if (empty($categories) || is_wp_error($categories)) {
-        return wpr_render_grid_menu($atts, $show_images, $image_position, 1);
+        return wpr_render_grid_menu($atts, $show_images, $image_position, $columns);
     }
     
     $items_by_category = array();
@@ -689,7 +752,7 @@ function wpr_render_accordion_menu($atts, $show_images, $image_position) {
                 </button>
                 
                 <div class="wpr-accordion-content">
-                    <div class="wpr-accordion-grid">
+                    <div class="wpr-accordion-grid wpr-grid-columns-<?php echo esc_attr($columns); ?>">
                         <?php foreach ($data['items'] as $item) : ?>
                             <?php echo wpr_render_single_item($item, $show_images, $image_position); ?>
                         <?php endforeach; ?>
@@ -707,7 +770,7 @@ function wpr_render_accordion_menu($atts, $show_images, $image_position) {
                 </button>
                 
                 <div class="wpr-accordion-content">
-                    <div class="wpr-accordion-grid">
+                    <div class="wpr-accordion-grid wpr-grid-columns-<?php echo esc_attr($columns); ?>">
                         <?php foreach ($uncategorized as $item) : ?>
                             <?php echo wpr_render_single_item($item, $show_images, $image_position); ?>
                         <?php endforeach; ?>
@@ -766,26 +829,33 @@ function wpr_render_single_item($item, $show_images, $image_position) {
     $item_categories = wp_get_post_terms($item->ID, 'wpr_category', array('fields' => 'slugs'));
     $cat_classes = is_array($item_categories) ? implode(' ', array_map(function($c) { return 'wpr-cat-' . $c; }, $item_categories)) : '';
     
+    $use_placeholder = !$has_image && $show_images;
+    $placeholder_url = $use_placeholder ? wpr_get_placeholder_image() : '';
+    
     ob_start();
     ?>
-    <div class="wpr-menu-item <?php echo $image_position === 'left' && $has_image ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && $has_image ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
+    <div class="wpr-menu-item <?php echo $image_position === 'left' && ($has_image || $use_placeholder) ? 'wpr-has-image-left' : ''; ?> <?php echo $image_position === 'top' && ($has_image || $use_placeholder) ? 'wpr-has-image-top' : ''; ?> <?php echo esc_attr($cat_classes); ?>" 
          data-title="<?php echo esc_attr(strtolower($item->post_title)); ?>" 
          data-description="<?php echo esc_attr(strtolower(wp_strip_all_tags($item->post_content))); ?>" 
          data-number="<?php echo esc_attr($dish_number); ?>">
         
-        <?php if ($show_images && $has_image) : ?>
+        <?php if ($show_images && ($has_image || $use_placeholder)) : ?>
             <div class="wpr-menu-item-image">
                 <?php if ($dish_number) : ?>
                     <div class="wpr-dish-number-badge"><?php echo esc_html($dish_number); ?></div>
                 <?php endif; ?>
-                <?php echo get_the_post_thumbnail($item->ID, 'medium'); ?>
+                <?php if ($has_image) : ?>
+                    <?php echo get_the_post_thumbnail($item->ID, 'medium'); ?>
+                <?php elseif ($placeholder_url) : ?>
+                    <img src="<?php echo esc_url($placeholder_url); ?>" alt="<?php echo esc_attr($item->post_title); ?>" />
+                <?php endif; ?>
             </div>
         <?php endif; ?>
         
         <div class="wpr-menu-item-content">
             <div class="wpr-menu-item-header">
                 <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                    <?php if ($dish_number && (!$show_images || !$has_image)) : ?>
+                    <?php if ($dish_number && (!$show_images || (!$has_image && !$use_placeholder))) : ?>
                         <span class="wpr-dish-number-inline"><?php echo esc_html($dish_number); ?></span>
                     <?php endif; ?>
                     <h3 class="wpr-menu-item-title"><?php echo esc_html($item->post_title); ?></h3>
