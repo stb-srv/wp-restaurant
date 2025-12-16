@@ -1,129 +1,345 @@
 /**
- * WP Restaurant Menu - Dark Mode Styles
+ * WP Restaurant Menu - Full WordPress Dark Mode
+ * Applies dark mode to entire WordPress site, not just the menu
  */
 
-/* Dark Mode Aktiviert */
-.wpr-dark-mode .wpr-menu-wrapper {
+/* ============================================
+   GLOBAL WORDPRESS DARK MODE
+   ============================================ */
+
+/* Body & HTML */
+body.wpr-dark-mode,
+html.wpr-dark-mode {
+    background: #111827 !important;
+    color: #f5f5f5 !important;
+}
+
+/* Main Content Areas */
+body.wpr-dark-mode .site,
+body.wpr-dark-mode #page,
+body.wpr-dark-mode #content,
+body.wpr-dark-mode .site-content,
+body.wpr-dark-mode main,
+body.wpr-dark-mode article {
+    background: #111827 !important;
+    color: #f5f5f5 !important;
+}
+
+/* Headers */
+body.wpr-dark-mode h1,
+body.wpr-dark-mode h2,
+body.wpr-dark-mode h3,
+body.wpr-dark-mode h4,
+body.wpr-dark-mode h5,
+body.wpr-dark-mode h6,
+body.wpr-dark-mode .entry-title,
+body.wpr-dark-mode .page-title,
+body.wpr-dark-mode .post-title {
+    color: #f5f5f5 !important;
+}
+
+/* Paragraphs & Text */
+body.wpr-dark-mode p,
+body.wpr-dark-mode span,
+body.wpr-dark-mode li,
+body.wpr-dark-mode div,
+body.wpr-dark-mode .entry-content {
+    color: #d1d5db !important;
+}
+
+/* Links */
+body.wpr-dark-mode a {
+    color: #fbbf24 !important;
+}
+
+body.wpr-dark-mode a:hover {
+    color: #f59e0b !important;
+}
+
+/* Header & Navigation */
+body.wpr-dark-mode header,
+body.wpr-dark-mode .site-header,
+body.wpr-dark-mode nav,
+body.wpr-dark-mode .navigation,
+body.wpr-dark-mode .navbar {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+}
+
+body.wpr-dark-mode .menu,
+body.wpr-dark-mode .nav-menu {
+    background: #1f2937 !important;
+}
+
+body.wpr-dark-mode .menu a,
+body.wpr-dark-mode .nav-menu a {
+    color: #f5f5f5 !important;
+}
+
+body.wpr-dark-mode .menu a:hover,
+body.wpr-dark-mode .nav-menu a:hover {
+    color: #fbbf24 !important;
+    background: #374151 !important;
+}
+
+/* Footer */
+body.wpr-dark-mode footer,
+body.wpr-dark-mode .site-footer {
+    background: #1f2937 !important;
+    color: #d1d5db !important;
+    border-color: #374151 !important;
+}
+
+/* Sidebar & Widgets */
+body.wpr-dark-mode aside,
+body.wpr-dark-mode .sidebar,
+body.wpr-dark-mode .widget {
+    background: #1f2937 !important;
+    color: #d1d5db !important;
+    border-color: #374151 !important;
+}
+
+body.wpr-dark-mode .widget-title {
+    color: #f5f5f5 !important;
+}
+
+/* Buttons */
+body.wpr-dark-mode button,
+body.wpr-dark-mode .button,
+body.wpr-dark-mode .btn,
+body.wpr-dark-mode input[type="submit"],
+body.wpr-dark-mode input[type="button"] {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
+    color: #1f2937 !important;
+    border-color: #d97706 !important;
+}
+
+body.wpr-dark-mode button:hover,
+body.wpr-dark-mode .button:hover,
+body.wpr-dark-mode .btn:hover {
+    background: linear-gradient(135deg, #b45309 0%, #d97706 100%) !important;
+}
+
+/* Forms & Inputs */
+body.wpr-dark-mode input[type="text"],
+body.wpr-dark-mode input[type="email"],
+body.wpr-dark-mode input[type="url"],
+body.wpr-dark-mode input[type="password"],
+body.wpr-dark-mode input[type="search"],
+body.wpr-dark-mode input[type="number"],
+body.wpr-dark-mode input[type="tel"],
+body.wpr-dark-mode input[type="date"],
+body.wpr-dark-mode textarea,
+body.wpr-dark-mode select {
+    background: #1f2937 !important;
+    color: #f5f5f5 !important;
+    border-color: #374151 !important;
+}
+
+body.wpr-dark-mode input::placeholder,
+body.wpr-dark-mode textarea::placeholder {
+    color: #6b7280 !important;
+}
+
+body.wpr-dark-mode input:focus,
+body.wpr-dark-mode textarea:focus,
+body.wpr-dark-mode select:focus {
+    border-color: #fbbf24 !important;
+    background: #111827 !important;
+}
+
+/* Tables */
+body.wpr-dark-mode table {
+    background: #1f2937 !important;
+    color: #f5f5f5 !important;
+    border-color: #374151 !important;
+}
+
+body.wpr-dark-mode th,
+body.wpr-dark-mode td {
+    background: #1f2937 !important;
+    color: #f5f5f5 !important;
+    border-color: #374151 !important;
+}
+
+body.wpr-dark-mode thead,
+body.wpr-dark-mode tfoot {
+    background: #111827 !important;
+}
+
+/* Comments */
+body.wpr-dark-mode .comment,
+body.wpr-dark-mode .comment-list,
+body.wpr-dark-mode .comment-body {
+    background: #1f2937 !important;
+    color: #d1d5db !important;
+    border-color: #374151 !important;
+}
+
+/* Code & Pre */
+body.wpr-dark-mode code,
+body.wpr-dark-mode pre {
+    background: #111827 !important;
+    color: #fbbf24 !important;
+    border-color: #374151 !important;
+}
+
+/* Blockquotes */
+body.wpr-dark-mode blockquote {
+    background: #1f2937 !important;
+    color: #d1d5db !important;
+    border-left-color: #fbbf24 !important;
+}
+
+/* Images - Slight dim effect */
+body.wpr-dark-mode img {
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+}
+
+body.wpr-dark-mode img:hover {
+    opacity: 1;
+}
+
+/* Cards & Boxes */
+body.wpr-dark-mode .card,
+body.wpr-dark-mode .box,
+body.wpr-dark-mode .panel {
+    background: #1f2937 !important;
+    color: #f5f5f5 !important;
+    border-color: #374151 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ============================================
+   PLUGIN SPECIFIC (WP Restaurant Menu)
+   ============================================ */
+
+/* Menu Wrapper */
+body.wpr-dark-mode .wpr-menu-wrapper {
     color: #f5f5f5;
 }
 
 /* Accordion Dark Mode */
-.wpr-dark-mode .wpr-accordion-section {
+body.wpr-dark-mode .wpr-accordion-section {
     background: #1f2937;
     border: 1px solid #374151;
 }
 
-.wpr-dark-mode .wpr-accordion-header {
+body.wpr-dark-mode .wpr-accordion-header {
     background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
 }
 
-.wpr-dark-mode .wpr-accordion-header:hover {
+body.wpr-dark-mode .wpr-accordion-header:hover {
     background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
 }
 
-.wpr-dark-mode .wpr-accordion-header.active {
+body.wpr-dark-mode .wpr-accordion-header.active {
     background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
 }
 
-/* Menu Item Cards Dark Mode */
-.wpr-dark-mode .wpr-menu-item {
+/* Menu Item Cards */
+body.wpr-dark-mode .wpr-menu-item {
     background: #1f2937;
     border: 1px solid #374151;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.wpr-dark-mode .wpr-menu-item:hover {
+body.wpr-dark-mode .wpr-menu-item:hover {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-.wpr-dark-mode .wpr-menu-item-title {
+body.wpr-dark-mode .wpr-menu-item-title {
     color: #f5f5f5;
 }
 
-.wpr-dark-mode .wpr-menu-item-description {
+body.wpr-dark-mode .wpr-menu-item-description {
     color: #d1d5db;
 }
 
-.wpr-dark-mode .wpr-menu-item-description p {
+body.wpr-dark-mode .wpr-menu-item-description p {
     color: #d1d5db;
 }
 
-.wpr-dark-mode .wpr-menu-item-price {
+body.wpr-dark-mode .wpr-menu-item-price {
     color: #fbbf24;
 }
 
-.wpr-dark-mode .wpr-menu-item-meta {
+body.wpr-dark-mode .wpr-menu-item-meta {
     border-top-color: #374151;
 }
 
-/* Dish Number Dark Mode */
-.wpr-dark-mode .wpr-dish-number-badge {
+/* Dish Number */
+body.wpr-dark-mode .wpr-dish-number-badge {
     background: rgba(251, 191, 36, 0.95);
     color: #1f2937;
 }
 
-.wpr-dark-mode .wpr-dish-number-inline {
+body.wpr-dark-mode .wpr-dish-number-inline {
     background: #fbbf24;
     color: #1f2937;
 }
 
-/* Badges Dark Mode */
-.wpr-dark-mode .wpr-badge-vegan {
+/* Badges */
+body.wpr-dark-mode .wpr-badge-vegan {
     background: #065f46;
     color: #d1fae5;
     border-color: #059669;
 }
 
-.wpr-dark-mode .wpr-badge-vegetarian {
+body.wpr-dark-mode .wpr-badge-vegetarian {
     background: #78350f;
     color: #fef3c7;
     border-color: #92400e;
 }
 
-.wpr-dark-mode .wpr-badge-allergen {
+body.wpr-dark-mode .wpr-badge-allergen {
     background: #7f1d1d;
     color: #fecaca;
     border-color: #991b1b;
 }
 
-.wpr-dark-mode .wpr-badge-allergen:hover {
+body.wpr-dark-mode .wpr-badge-allergen:hover {
     background: #991b1b;
 }
 
-/* Search Bar Dark Mode */
-.wpr-dark-mode .wpr-search-bar {
+/* Search Bar */
+body.wpr-dark-mode .wpr-search-bar {
     background: #1f2937;
     border-color: #374151;
 }
 
-.wpr-dark-mode .wpr-search-input {
+body.wpr-dark-mode .wpr-search-input {
     background: #111827;
     border-color: #374151;
     color: #f5f5f5;
 }
 
-.wpr-dark-mode .wpr-search-input:hover {
+body.wpr-dark-mode .wpr-search-input:hover {
     border-color: #fbbf24;
     background: #1f2937;
 }
 
-.wpr-dark-mode .wpr-search-input::placeholder {
+body.wpr-dark-mode .wpr-search-input::placeholder {
     color: #6b7280;
 }
 
-/* No Items Dark Mode */
-.wpr-dark-mode .wpr-no-items {
+/* No Items */
+body.wpr-dark-mode .wpr-no-items {
     background: #1f2937;
     color: #9ca3af;
     border: 1px solid #374151;
 }
 
-/* Image Containers Dark Mode */
-.wpr-dark-mode .wpr-menu-item-image {
+/* Image Containers */
+body.wpr-dark-mode .wpr-menu-item-image {
     background: #111827;
 }
 
-/* Toggle Button */
+/* ============================================
+   DARK MODE TOGGLE BUTTON
+   ============================================ */
+
 .wpr-dark-mode-toggle {
     position: fixed;
     bottom: 30px;
@@ -153,7 +369,7 @@
 }
 
 /* Dark Mode aktiv - Toggle Button */
-.wpr-dark-mode .wpr-dark-mode-toggle {
+body.wpr-dark-mode .wpr-dark-mode-toggle {
     background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
 }
 
@@ -174,17 +390,20 @@
     transform: rotate(180deg) scale(0);
 }
 
-.wpr-dark-mode .wpr-dark-mode-toggle .wpr-icon-sun {
+body.wpr-dark-mode .wpr-dark-mode-toggle .wpr-icon-sun {
     opacity: 0;
     transform: rotate(-180deg) scale(0);
 }
 
-.wpr-dark-mode .wpr-dark-mode-toggle .wpr-icon-moon {
+body.wpr-dark-mode .wpr-dark-mode-toggle .wpr-icon-moon {
     opacity: 1;
     transform: rotate(0deg) scale(1);
 }
 
-/* Mobile */
+/* ============================================
+   MOBILE RESPONSIVE
+   ============================================ */
+
 @media (max-width: 768px) {
     .wpr-dark-mode-toggle {
         bottom: 20px;
@@ -193,4 +412,15 @@
         height: 48px;
         font-size: 20px;
     }
+}
+
+/* ============================================
+   SMOOTH TRANSITIONS
+   ============================================ */
+
+body.wpr-dark-mode,
+body.wpr-dark-mode *,
+body.wpr-dark-mode *::before,
+body.wpr-dark-mode *::after {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
 }

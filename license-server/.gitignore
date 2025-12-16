@@ -1,0 +1,16 @@
+# Sensitive files - NEVER commit these!
+api-key.php
+config.php
+
+# Logs
+logs/
+*.log
+
+# Data files
+*.json
+*.db
+*.sqlite
+
+# Temp files
+tmp/
+temp/

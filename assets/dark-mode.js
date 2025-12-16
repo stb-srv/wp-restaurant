@@ -1,5 +1,5 @@
 /**
- * WP Restaurant Menu - Dark Mode Toggle
+ * WP Restaurant Menu - Full WordPress Dark Mode Toggle
  */
 
 (function() {
@@ -11,9 +11,6 @@
     // Dark Mode Manager
     class DarkModeManager {
         constructor() {
-            this.wrapper = document.querySelector('.wpr-menu-wrapper');
-            if (!this.wrapper) return;
-            
             this.settings = window.wprDarkMode || {};
             this.init();
         }
@@ -51,21 +48,27 @@
         }
         
         enableDarkMode(save = true) {
-            this.wrapper.classList.add(CLASS_NAME);
+            // Füge Klasse zu <body> hinzu (nicht nur .wpr-menu-wrapper)
+            document.body.classList.add(CLASS_NAME);
+            document.documentElement.classList.add(CLASS_NAME);
+            
             if (save) {
                 localStorage.setItem(STORAGE_KEY, 'dark');
             }
         }
         
         disableDarkMode(save = true) {
-            this.wrapper.classList.remove(CLASS_NAME);
+            // Entferne Klasse von <body>
+            document.body.classList.remove(CLASS_NAME);
+            document.documentElement.classList.remove(CLASS_NAME);
+            
             if (save) {
                 localStorage.setItem(STORAGE_KEY, 'light');
             }
         }
         
         toggleDarkMode() {
-            if (this.wrapper.classList.contains(CLASS_NAME)) {
+            if (document.body.classList.contains(CLASS_NAME)) {
                 this.disableDarkMode();
             } else {
                 this.enableDarkMode();
@@ -76,6 +79,7 @@
             const button = document.createElement('button');
             button.className = 'wpr-dark-mode-toggle';
             button.setAttribute('aria-label', 'Dark Mode umschalten');
+            button.setAttribute('title', 'Dark Mode umschalten');
             button.innerHTML = `
                 <span class="wpr-icon-sun">☀️</span>
                 <span class="wpr-icon-moon">🌙</span>

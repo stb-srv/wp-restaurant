@@ -2,7 +2,8 @@
 /**
  * License Server Configuration
  * 
- * WICHTIG: Dateiname nach Upload ändern zu .htaccess schützen!
+ * WICHTIG: Diese Datei NICHT in Git commiten!
+ * Erstelle eine config.example.php für Versionierung.
  */
 
 if (!defined('LICENSE_SERVER')) {
@@ -20,8 +21,23 @@ define('DB_CHARSET', 'utf8mb4');
 // Standard-Passwort: "admin2025" - BITTE ÄNDERN!
 define('ADMIN_PASSWORD_HASH', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
 
-// Sicherheit
-define('API_KEY', 'WPR_2025_SECRET_' . md5(DB_NAME)); // Automatisch generiert
+// Sicherheit - API Key muss manuell gesetzt werden!
+// Generiere einen sicheren Key mit: openssl rand -hex 32
+// NIEMALS diesen Key in Git commiten!
+if (!defined('API_KEY')) {
+    // Prüfe ob API_KEY in separater Datei definiert ist
+    if (file_exists(__DIR__ . '/api-key.php')) {
+        require_once __DIR__ . '/api-key.php';
+    } else {
+        // Fallback nur für lokale Tests - NIEMALS in Produktion!
+        if ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === '127.0.0.1') {
+            define('API_KEY', 'LOCAL_DEV_KEY_INSECURE');
+        } else {
+            die('SECURITY ERROR: API_KEY not configured! Create api-key.php with define("API_KEY", "your-secure-key");');
+        }
+    }
+}
+
 define('ALLOW_LOCAL_REQUESTS', true); // Für Tests
 
 // Logging
