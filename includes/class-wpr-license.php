@@ -1,7 +1,7 @@
 <?php
 /**
  * WP Restaurant Menu - License Management
- * Master Keys sind nur im Lizenz-Server sichtbar (nicht hier!)
+ * Server-URL ist GESPERRT - nur vom License-Server änderbar!
  */
 
 if (!defined('ABSPATH')) {
@@ -50,9 +50,14 @@ class WPR_License {
         ),
     );
     
-    // Lizenz-Server URL (änderbar)
+    // Lizenz-Server URL (NUR vom Server änderbar!)
     private static function get_server_url() {
         return get_option('wpr_license_server', '');
+    }
+    
+    // Server-URL setzen (NUR via API!)
+    public static function set_server_url($url) {
+        return update_option('wpr_license_server', esc_url_raw($url));
     }
     
     // Prüfe ob Master Key
@@ -305,17 +310,6 @@ class WPR_License {
             echo '<div class="notice notice-success"><p>' . esc_html($result['message']) . '</p></div>';
         }
         
-        // Server-URL speichern
-        if (isset($_POST['wpr_save_server']) && check_admin_referer('wpr_license_action', 'wpr_license_nonce')) {
-            $server_url = esc_url_raw($_POST['license_server']);
-            update_option('wpr_license_server', $server_url);
-            
-            // Cache löschen
-            delete_transient('wpr_pricing_data');
-            
-            echo '<div class="notice notice-success"><p>Server-URL gespeichert! Preise werden neu geladen.</p></div>';
-        }
-        
         // Cache manuell löschen
         if (isset($_POST['wpr_refresh_pricing']) && check_admin_referer('wpr_license_action', 'wpr_license_nonce')) {
             delete_transient('wpr_pricing_data');
@@ -371,6 +365,21 @@ class WPR_License {
                     <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
                         <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ Free Version</h3>
                         <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Server-Info (nur anzeigen, nicht änderbar!) -->
+                <?php if (!empty($server_url)) : ?>
+                    <div style="padding: 12px; background: #f0f9ff; border-radius: 4px; margin-top: 15px;">
+                        <p style="margin: 0; color: #0369a1; font-size: 0.9em;">
+                            🌐 <strong>Lizenz-Server:</strong> <code><?php echo esc_html($server_url); ?></code>
+                        </p>
+                    </div>
+                <?php else : ?>
+                    <div style="padding: 12px; background: #fef3c7; border-radius: 4px; margin-top: 15px;">
+                        <p style="margin: 0; color: #92400e; font-size: 0.9em;">
+                            ⚠️ <strong>Hinweis:</strong> Kein Lizenz-Server konfiguriert. Kontaktieren Sie den Support.
+                        </p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -429,12 +438,6 @@ class WPR_License {
                         </ul>
                     </div>
                 </div>
-                
-                <?php if (empty($server_url)) : ?>
-                    <p style="margin: 15px 0 0 0; padding: 12px; background: #fef3c7; border-radius: 4px; color: #92400e;">
-                        💡 <strong>Hinweis:</strong> Preise werden aktuell als Fallback angezeigt. Konfigurieren Sie einen Lizenz-Server für dynamische Preise.
-                    </p>
-                <?php endif; ?>
             </div>
             
             <!-- Lizenz aktivieren -->
@@ -473,40 +476,6 @@ class WPR_License {
                                 Lizenz deaktivieren
                             </button>
                         <?php endif; ?>
-                    </p>
-                </form>
-            </div>
-            
-            <!-- Server-Konfiguration -->
-            <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <h2 style="margin-top: 0;">🌐 Lizenz-Server</h2>
-                
-                <form method="post">
-                    <?php wp_nonce_field('wpr_license_action', 'wpr_license_nonce'); ?>
-                    
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row"><label for="license_server">Server-URL</label></th>
-                            <td>
-                                <input 
-                                    type="url" 
-                                    name="license_server" 
-                                    id="license_server" 
-                                    value="<?php echo esc_url($server_url); ?>" 
-                                    class="regular-text"
-                                    placeholder="https://ihre-domain.com/license-server/api.php"
-                                />
-                                <p class="description">
-                                    URL zu Ihrem Lizenz-Server API-Endpoint. Der Server stellt Lizenzprüfung und Preise bereit.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <p class="submit">
-                        <button type="submit" name="wpr_save_server" class="button button-primary">
-                            💾 Server-URL speichern
-                        </button>
                     </p>
                 </form>
             </div>
