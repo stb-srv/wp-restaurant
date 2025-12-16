@@ -33,8 +33,8 @@ class WPR_License {
     
     // FESTE Server-URL (hier eintragen!)
     private static function get_server_url() {
-        // Hier deine License-Server URL eintragen:
-        return 'https://license-server.stb-srv.de/api.php';
+        // WICHTIG: /license-server/ nicht vergessen!
+        return 'https://license-server.stb-srv.de/license-server/api.php';
     }
     
     // Fallback Preise (falls Server nicht erreichbar)
