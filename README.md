@@ -184,7 +184,7 @@ Das Plugin unterstützt alle 14 EU-Pflicht-Allergene:
 
 Das Plugin bietet verschiedene Lizenz-Stufen:
 
-- **Free** - Bis zu 10 Gerichte
+- **Free** - Bis zu 20 Gerichte
 - **Basic** - Bis zu 50 Gerichte
 - **Pro** - Bis zu 100 Gerichte
 - **Pro+** - Unbegrenzte Gerichte + Dark Mode
