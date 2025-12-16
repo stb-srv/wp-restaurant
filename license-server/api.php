@@ -5,17 +5,37 @@
 
 define('LICENSE_SERVER', true);
 
+// Datenbank-Config laden
+if (!file_exists(__DIR__ . '/db-config.php')) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Database not configured. Please run installer.',
+    ]);
+    exit;
+}
+
+require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/functions.php';
-require_once __DIR__ . '/includes/security.php';
 
-// Rate Limiting
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-if (!check_rate_limit($ip, 100, 3600)) {
-    json_response([
+// Helper für JSON Response
+function api_response($data, $status = 200) {
+    http_response_code($status);
+    header('Content-Type: application/json');
+    header('Access-Control-Allow-Origin: *');
+    echo json_encode($data, JSON_PRETTY_PRINT);
+    exit;
+}
+
+// Datenbank-Verbindung prüfen
+$db = LicenseDB::getInstance();
+if (!$db->getConnection()) {
+    api_response([
         'success' => false,
-        'error' => 'Rate limit exceeded. Try again later.',
-    ], 429);
+        'error' => 'Database connection failed',
+    ], 500);
 }
 
 // Action bestimmen
@@ -23,11 +43,11 @@ $action = $_GET['action'] ?? '';
 
 // PRICING ABRUFEN
 if ($action === 'get_pricing') {
-    log_message("Pricing request from $ip", 'api');
+    $pricing = $db->getPricing();
     
-    json_response([
+    api_response([
         'success' => true,
-        'pricing' => get_pricing(),
+        'pricing' => $pricing,
     ]);
 }
 
@@ -36,64 +56,79 @@ if ($action === 'check_license') {
     $key = isset($_GET['key']) ? strtoupper(trim($_GET['key'])) : '';
     $domain = isset($_GET['domain']) ? trim($_GET['domain']) : '';
     
-    log_message("License check: key=$key, domain=$domain", 'api');
-    
-    if (empty($key) || empty($domain)) {
-        json_response([
+    if (empty($key)) {
+        api_response([
             'success' => false,
             'valid' => false,
-            'message' => 'Key and domain required',
+            'message' => 'License key required',
         ], 400);
     }
     
-    // Lizenz laden
-    $license = get_license($key);
+    if (empty($domain)) {
+        api_response([
+            'success' => false,
+            'valid' => false,
+            'message' => 'Domain required',
+        ], 400);
+    }
+    
+    // Lizenz aus DB laden
+    $license = $db->getLicense($key);
     
     if (!$license) {
-        log_message("License not found: $key", 'warning');
-        json_response([
+        api_response([
             'success' => false,
             'valid' => false,
             'message' => 'License not found',
         ]);
     }
     
-    // Domain prüfen
-    if ($license['domain'] !== '*' && $license['domain'] !== $domain) {
-        log_message("Domain mismatch: $domain != {$license['domain']}", 'warning');
-        json_response([
+    // Domain prüfen (wenn gesetzt)
+    if (!empty($license['domain']) && $license['domain'] !== '*' && $license['domain'] !== $domain) {
+        api_response([
             'success' => false,
             'valid' => false,
-            'message' => 'Domain mismatch',
+            'message' => 'Domain mismatch. License is for: ' . $license['domain'],
         ]);
     }
     
     // Ablaufdatum prüfen
-    if (isset($license['expires']) && $license['expires'] !== 'lifetime' && strtotime($license['expires']) < time()) {
-        log_message("License expired: $key", 'warning');
-        json_response([
-            'success' => false,
-            'valid' => false,
-            'message' => 'License expired',
-        ]);
+    if (!empty($license['expires']) && $license['expires'] !== 'lifetime') {
+        if (strtotime($license['expires']) < time()) {
+            api_response([
+                'success' => false,
+                'valid' => false,
+                'message' => 'License expired on ' . $license['expires'],
+            ]);
+        }
     }
     
-    // Lizenz ist gültig
-    log_message("Valid license: $key for $domain", 'success');
+    // Lizenz ist gültig!
+    $db->log('check_license', "Valid: $key for $domain");
     
-    json_response([
+    api_response([
         'success' => true,
         'valid' => true,
         'type' => $license['type'],
-        'max_items' => $license['max_items'],
+        'max_items' => (int)$license['max_items'],
         'expires' => $license['expires'],
         'features' => $license['features'],
     ]);
 }
 
+// DEBUG: Alle Lizenzen anzeigen (nur für Tests!)
+if ($action === 'debug_licenses' && isset($_GET['secret']) && $_GET['secret'] === 'debug123') {
+    $licenses = $db->getAllLicenses();
+    
+    api_response([
+        'success' => true,
+        'count' => count($licenses),
+        'licenses' => $licenses,
+    ]);
+}
+
 // Ungültige Action
-log_message("Invalid API action: $action", 'warning');
-json_response([
+api_response([
     'success' => false,
-    'error' => 'Invalid action',
+    'error' => 'Invalid action. Available: get_pricing, check_license',
 ], 400);
