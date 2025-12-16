@@ -1,0 +1,196 @@
+/**
+ * WP Restaurant Menu - Dark Mode Styles
+ */
+
+/* Dark Mode Aktiviert */
+.wpr-dark-mode .wpr-menu-wrapper {
+    color: #f5f5f5;
+}
+
+/* Accordion Dark Mode */
+.wpr-dark-mode .wpr-accordion-section {
+    background: #1f2937;
+    border: 1px solid #374151;
+}
+
+.wpr-dark-mode .wpr-accordion-header {
+    background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+}
+
+.wpr-dark-mode .wpr-accordion-header:hover {
+    background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+}
+
+.wpr-dark-mode .wpr-accordion-header.active {
+    background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+}
+
+/* Menu Item Cards Dark Mode */
+.wpr-dark-mode .wpr-menu-item {
+    background: #1f2937;
+    border: 1px solid #374151;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.wpr-dark-mode .wpr-menu-item:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.wpr-dark-mode .wpr-menu-item-title {
+    color: #f5f5f5;
+}
+
+.wpr-dark-mode .wpr-menu-item-description {
+    color: #d1d5db;
+}
+
+.wpr-dark-mode .wpr-menu-item-description p {
+    color: #d1d5db;
+}
+
+.wpr-dark-mode .wpr-menu-item-price {
+    color: #fbbf24;
+}
+
+.wpr-dark-mode .wpr-menu-item-meta {
+    border-top-color: #374151;
+}
+
+/* Dish Number Dark Mode */
+.wpr-dark-mode .wpr-dish-number-badge {
+    background: rgba(251, 191, 36, 0.95);
+    color: #1f2937;
+}
+
+.wpr-dark-mode .wpr-dish-number-inline {
+    background: #fbbf24;
+    color: #1f2937;
+}
+
+/* Badges Dark Mode */
+.wpr-dark-mode .wpr-badge-vegan {
+    background: #065f46;
+    color: #d1fae5;
+    border-color: #059669;
+}
+
+.wpr-dark-mode .wpr-badge-vegetarian {
+    background: #78350f;
+    color: #fef3c7;
+    border-color: #92400e;
+}
+
+.wpr-dark-mode .wpr-badge-allergen {
+    background: #7f1d1d;
+    color: #fecaca;
+    border-color: #991b1b;
+}
+
+.wpr-dark-mode .wpr-badge-allergen:hover {
+    background: #991b1b;
+}
+
+/* Search Bar Dark Mode */
+.wpr-dark-mode .wpr-search-bar {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.wpr-dark-mode .wpr-search-input {
+    background: #111827;
+    border-color: #374151;
+    color: #f5f5f5;
+}
+
+.wpr-dark-mode .wpr-search-input:hover {
+    border-color: #fbbf24;
+    background: #1f2937;
+}
+
+.wpr-dark-mode .wpr-search-input::placeholder {
+    color: #6b7280;
+}
+
+/* No Items Dark Mode */
+.wpr-dark-mode .wpr-no-items {
+    background: #1f2937;
+    color: #9ca3af;
+    border: 1px solid #374151;
+}
+
+/* Image Containers Dark Mode */
+.wpr-dark-mode .wpr-menu-item-image {
+    background: #111827;
+}
+
+/* Toggle Button */
+.wpr-dark-mode-toggle {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.3s ease;
+    z-index: 999998;
+}
+
+.wpr-dark-mode-toggle:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.wpr-dark-mode-toggle:active {
+    transform: translateY(-2px);
+}
+
+/* Dark Mode aktiv - Toggle Button */
+.wpr-dark-mode .wpr-dark-mode-toggle {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+}
+
+/* Icons im Toggle */
+.wpr-dark-mode-toggle .wpr-icon-sun,
+.wpr-dark-mode-toggle .wpr-icon-moon {
+    transition: all 0.3s ease;
+    position: absolute;
+}
+
+.wpr-dark-mode-toggle .wpr-icon-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+.wpr-dark-mode-toggle .wpr-icon-moon {
+    opacity: 0;
+    transform: rotate(180deg) scale(0);
+}
+
+.wpr-dark-mode .wpr-dark-mode-toggle .wpr-icon-sun {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0);
+}
+
+.wpr-dark-mode .wpr-dark-mode-toggle .wpr-icon-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .wpr-dark-mode-toggle {
+        bottom: 20px;
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+}
