@@ -1,7 +1,7 @@
 <?php
 /**
  * WP Restaurant Menu - License Management
- * FIXED: Zeigt jetzt echte max_items Zahlen an, keine "unlimited" mehr!
+ * Master Keys sind nur im Lizenz-Server sichtbar (nicht hier!)
  */
 
 if (!defined('ABSPATH')) {
@@ -115,25 +115,25 @@ class WPR_License {
     public static function get_license_info() {
         $key = get_option('wpr_license_key', '');
         
-        // PRO+ Master Key? -> 200 Items + Dark Mode (KEIN unlimited mehr!)
+        // PRO+ Master Key? -> 200 Items + Dark Mode
         if (self::is_master_key_pro_plus($key)) {
             return array(
                 'valid' => true,
                 'type' => 'pro_plus',
-                'max_items' => 200, // FIX: 200 statt 999999!
+                'max_items' => 200,
                 'expires' => '2099-12-31',
-                'features' => array('dark_mode'), // FIX: KEIN unlimited_items!
+                'features' => array('dark_mode'),
             );
         }
         
-        // Standard Master Key? -> 200 Items (KEIN unlimited!)
+        // Standard Master Key? -> 200 Items
         if (self::is_master_key($key)) {
             return array(
                 'valid' => true,
                 'type' => 'pro',
-                'max_items' => 200, // FIX: 200 statt 999999!
+                'max_items' => 200,
                 'expires' => '2099-12-31',
-                'features' => array(), // FIX: LEER!
+                'features' => array(),
             );
         }
         
@@ -269,7 +269,7 @@ class WPR_License {
         // Kein Server = Ungültig
         return array(
             'success' => false,
-            'message' => '⚠️ Lizenz-Server nicht konfiguriert. Master-Keys funktionieren weiterhin.',
+            'message' => '⚠️ Lizenz-Server nicht konfiguriert. Kontaktieren Sie den Support für eine gültige Lizenz.',
         );
     }
     
@@ -330,7 +330,7 @@ class WPR_License {
         $count = wp_count_posts('wpr_menu_item');
         $total_items = $count->publish + $count->draft + $count->pending;
         
-        // FIX: Zeige ECHTE Zahl - keine "unlimited" Prüfung mehr!
+        // Zeige ECHTE Zahl
         $max_items = $license_info['max_items'];
         $is_over_limit = $total_items > $max_items;
         
@@ -457,7 +457,7 @@ class WPR_License {
                                     placeholder="WPR-XXXXX-XXXXX-XXXXX"
                                 />
                                 <p class="description">
-                                    Geben Sie Ihren Lizenzschlüssel ein. Master-Keys funktionieren ohne Server.
+                                    Geben Sie Ihren Lizenzschlüssel ein, den Sie vom Lizenz-Server erhalten haben.
                                 </p>
                             </td>
                         </tr>
@@ -479,7 +479,7 @@ class WPR_License {
             
             <!-- Server-Konfiguration -->
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <h2 style="margin-top: 0;">🌐 Lizenz-Server (Optional)</h2>
+                <h2 style="margin-top: 0;">🌐 Lizenz-Server</h2>
                 
                 <form method="post">
                     <?php wp_nonce_field('wpr_license_action', 'wpr_license_nonce'); ?>
@@ -509,26 +509,6 @@ class WPR_License {
                         </button>
                     </p>
                 </form>
-            </div>
-            
-            <!-- Master Keys -->
-            <div style="background: #f0f9ff; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #0ea5e9;">
-                <h2 style="margin-top: 0; color: #0369a1;">ℹ️ Master-Keys (Development)</h2>
-                
-                <h3>PRO+ Keys (200 Gerichte + Dark Mode):</h3>
-                <ul style="list-style: disc; margin-left: 20px;">
-                    <?php foreach (self::$master_keys_pro_plus as $key) : ?>
-                        <li><code style="background: #1f2937; color: #fbbf24; padding: 2px 6px; border-radius: 3px; font-family: monospace;"><?php echo esc_html($key); ?></code></li>
-                    <?php endforeach; ?>
-                </ul>
-                
-                <h3>PRO Keys (200 Gerichte):</h3>
-                <ul style="list-style: disc; margin-left: 20px;">
-                    <?php foreach (array_slice(self::$master_keys, 0, 3) as $key) : ?>
-                        <li><code style="background: #fff; padding: 2px 6px; border-radius: 3px; font-family: monospace;"><?php echo esc_html($key); ?></code></li>
-                    <?php endforeach; ?>
-                    <li><em>... und 7 weitere</em></li>
-                </ul>
             </div>
         </div>
         <?php
