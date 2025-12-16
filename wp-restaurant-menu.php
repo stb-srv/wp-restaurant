@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.5.5
+ * Version: 1.6.0
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.5.5');
+define('WP_RESTAURANT_MENU_VERSION', '1.6.0');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -34,16 +34,10 @@ function wpr_activate() {
             'show_search' => 'yes',
             'group_by_category' => 'yes',
             'grid_columns' => '2',
+            'dark_mode_enabled' => 'no',
+            'dark_mode_method' => 'manual',
+            'dark_mode_position' => 'bottom-right',
         ));
-    } else {
-        $settings = get_option('wpr_settings');
-        if (!isset($settings['group_by_category'])) {
-            $settings['group_by_category'] = 'yes';
-        }
-        if (!isset($settings['grid_columns'])) {
-            $settings['grid_columns'] = '2';
-        }
-        update_option('wpr_settings', $settings);
     }
     
     add_option('wpr_version', WP_RESTAURANT_MENU_VERSION);
@@ -60,6 +54,18 @@ function wpr_check_settings() {
         }
         if (!isset($settings['grid_columns'])) {
             $settings['grid_columns'] = '2';
+            $updated = true;
+        }
+        if (!isset($settings['dark_mode_enabled'])) {
+            $settings['dark_mode_enabled'] = 'no';
+            $updated = true;
+        }
+        if (!isset($settings['dark_mode_method'])) {
+            $settings['dark_mode_method'] = 'manual';
+            $updated = true;
+        }
+        if (!isset($settings['dark_mode_position'])) {
+            $settings['dark_mode_position'] = 'bottom-right';
             $updated = true;
         }
         if ($updated) {
@@ -166,6 +172,33 @@ function wpr_enqueue_styles() {
             WP_RESTAURANT_MENU_VERSION,
             true
         );
+        
+        // Dark Mode (nur wenn aktiviert und Lizenz vorhanden)
+        $settings = get_option('wpr_settings');
+        $dark_mode_enabled = isset($settings['dark_mode_enabled']) && $settings['dark_mode_enabled'] === 'yes';
+        
+        if ($dark_mode_enabled && WPR_License::has_dark_mode()) {
+            wp_enqueue_style(
+                'wpr-dark-mode',
+                WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/dark-mode.css',
+                array('wpr-menu-styles'),
+                WP_RESTAURANT_MENU_VERSION
+            );
+            
+            wp_enqueue_script(
+                'wpr-dark-mode',
+                WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/dark-mode.js',
+                array(),
+                WP_RESTAURANT_MENU_VERSION,
+                true
+            );
+            
+            wp_localize_script('wpr-dark-mode', 'wprDarkMode', array(
+                'enabled' => true,
+                'method' => isset($settings['dark_mode_method']) ? $settings['dark_mode_method'] : 'manual',
+                'position' => isset($settings['dark_mode_position']) ? $settings['dark_mode_position'] : 'bottom-right',
+            ));
+        }
     }
 }
 add_action('wp_enqueue_scripts', 'wpr_enqueue_styles');
@@ -216,6 +249,9 @@ function wpr_render_settings_page() {
             'show_search' => sanitize_text_field($_POST['show_search']),
             'group_by_category' => sanitize_text_field($_POST['group_by_category']),
             'grid_columns' => sanitize_text_field($_POST['grid_columns']),
+            'dark_mode_enabled' => sanitize_text_field($_POST['dark_mode_enabled']),
+            'dark_mode_method' => sanitize_text_field($_POST['dark_mode_method']),
+            'dark_mode_position' => sanitize_text_field($_POST['dark_mode_position']),
         );
         update_option('wpr_settings', $settings);
         echo '<div class="notice notice-success"><p><strong>Einstellungen gespeichert!</strong></p></div>';
@@ -229,7 +265,12 @@ function wpr_render_settings_page() {
         'show_search' => 'yes',
         'group_by_category' => 'yes',
         'grid_columns' => '2',
+        'dark_mode_enabled' => 'no',
+        'dark_mode_method' => 'manual',
+        'dark_mode_position' => 'bottom-right',
     ));
+    
+    $has_dark_mode = WPR_License::has_dark_mode();
     ?>
     <div class="wrap">
         <h1>⚙️ Restaurant Menü Einstellungen</h1>
@@ -316,6 +357,59 @@ function wpr_render_settings_page() {
                                 <option value="3" <?php selected($settings['grid_columns'], '3'); ?>>3 Spalten (breit)</option>
                             </select>
                             <p class="description">Anzahl der Spalten auf Desktop-Geräten. Smartphones zeigen automatisch immer 1 Spalte.</p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <!-- Dark Mode Einstellungen -->
+                <h2 style="display: flex; align-items: center; gap: 10px;">
+                    🌙 Dark Mode
+                    <?php if ($has_dark_mode) : ?>
+                        <span style="background: #1f2937; color: #fbbf24; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; font-weight: normal;">PRO+</span>
+                    <?php else : ?>
+                        <span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; font-weight: normal;">🔒 Lizenz erforderlich</span>
+                    <?php endif; ?>
+                </h2>
+                
+                <?php if (!$has_dark_mode) : ?>
+                    <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="margin: 0;"><strong>🔒 Dark Mode ist ein PRO+ Feature</strong></p>
+                        <p style="margin: 10px 0 0 0;">Upgraden Sie auf PRO+ um den Dark Mode zu aktivieren.</p>
+                        <a href="<?php echo admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license'); ?>" class="button button-primary" style="margin-top: 10px;">🔑 Jetzt upgraden</a>
+                    </div>
+                <?php endif; ?>
+                
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="dark_mode_enabled">Dark Mode aktivieren</label></th>
+                        <td>
+                            <select name="dark_mode_enabled" id="dark_mode_enabled" style="min-width: 200px;" <?php echo $has_dark_mode ? '' : 'disabled'; ?>>
+                                <option value="yes" <?php selected($settings['dark_mode_enabled'], 'yes'); ?>>Ja, Dark Mode aktivieren</option>
+                                <option value="no" <?php selected($settings['dark_mode_enabled'], 'no'); ?>>Nein, nur Light Mode</option>
+                            </select>
+                            <?php if (!$has_dark_mode) : ?>
+                                <p class="description" style="color: #92400e;">⚠️ Benötigt PRO+ Lizenz</p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="dark_mode_method">Umschalt-Methode</label></th>
+                        <td>
+                            <select name="dark_mode_method" id="dark_mode_method" style="min-width: 200px;" <?php echo $has_dark_mode ? '' : 'disabled'; ?>>
+                                <option value="manual" <?php selected($settings['dark_mode_method'], 'manual'); ?>>Manuell (Toggle Button)</option>
+                                <option value="auto" <?php selected($settings['dark_mode_method'], 'auto'); ?>>Automatisch (System-Einstellung)</option>
+                            </select>
+                            <p class="description">Automatisch nutzt die System-Einstellung des Geräts.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="dark_mode_position">Toggle Button Position</label></th>
+                        <td>
+                            <select name="dark_mode_position" id="dark_mode_position" style="min-width: 200px;" <?php echo $has_dark_mode ? '' : 'disabled'; ?>>
+                                <option value="bottom-right" <?php selected($settings['dark_mode_position'], 'bottom-right'); ?>>Unten Rechts</option>
+                                <option value="bottom-left" <?php selected($settings['dark_mode_position'], 'bottom-left'); ?>>Unten Links</option>
+                            </select>
+                            <p class="description">Position des schwebenden Toggle Buttons (nur bei manuell).</p>
                         </td>
                     </tr>
                 </table>
@@ -442,36 +536,27 @@ function wpr_save_meta($post_id) {
 add_action('save_post', 'wpr_save_meta');
 
 function wpr_check_item_limit_before_save($post_id) {
-    // Nur für Menüpunkte
     if (get_post_type($post_id) !== 'wpr_menu_item') return;
     
-    // Nur bei neuen Gerichten prüfen (nicht beim Bearbeiten)
     $post_status = get_post_status($post_id);
     if ($post_status !== 'auto-draft' && $post_status !== 'draft') {
-        // Wenn es bereits veröffentlicht ist, nicht blockieren
         $old_status = get_post_meta($post_id, '_wpr_old_status', true);
         if ($old_status === 'publish') {
             return;
         }
     }
     
-    // Lizenz-Infos holen
     $license = WPR_License::get_license_info();
-    
-    // Prüfe ob unbegrenzt (unlimited_items Feature ODER max_items >= 999)
     $is_unlimited = $license['valid'] && (
         in_array('unlimited_items', $license['features']) || 
         $license['max_items'] >= 999
     );
     
-    // Wenn unbegrenzt, kein Limit
     if ($is_unlimited) return;
     
-    // Aktuelle Anzahl zählen
     $count = wp_count_posts('wpr_menu_item');
     $total = $count->publish + $count->draft + $count->pending;
     
-    // Limit erreicht?
     if ($total >= $license['max_items']) {
         $message = $license['valid'] 
             ? '<h1>🔒 Lizenz-Limit erreicht</h1>' .
@@ -491,7 +576,6 @@ function wpr_check_item_limit_before_save($post_id) {
 }
 add_action('save_post', 'wpr_check_item_limit_before_save', 1);
 
-// Speichere alten Status vor Update
 function wpr_remember_post_status($post_id) {
     if (get_post_type($post_id) === 'wpr_menu_item') {
         $status = get_post_status($post_id);
@@ -505,8 +589,6 @@ function wpr_admin_notices() {
     if (!$screen || $screen->post_type !== 'wpr_menu_item') return;
     
     $license = WPR_License::get_license_info();
-    
-    // Prüfe ob unbegrenzt
     $is_unlimited = $license['valid'] && (
         in_array('unlimited_items', $license['features']) || 
         $license['max_items'] >= 999
@@ -767,7 +849,6 @@ function wpr_render_single_item($item, $show_images, $image_position) {
     $item_categories = wp_get_post_terms($item->ID, 'wpr_category', array('fields' => 'slugs'));
     $cat_classes = is_array($item_categories) ? implode(' ', array_map(function($c) { return 'wpr-cat-' . $c; }, $item_categories)) : '';
     
-    // Hole Allergen-Daten
     $all_allergens = wpr_get_allergens();
     $allergens = array();
     if (is_array($allergen_slugs)) {
