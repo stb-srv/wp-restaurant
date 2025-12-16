@@ -213,6 +213,9 @@ class WPR_License {
         // Prüfe ob unbegrenzt
         $is_unlimited = $license_info['valid'] && (in_array('unlimited_items', $license_info['features']) || $license_info['max_items'] >= 999);
         
+        // Prüfe ob über Limit
+        $is_over_limit = !$is_unlimited && $total_items > $license_info['max_items'];
+        
         ?>
         <div class="wrap">
             <h1>🔑 Lizenz-Verwaltung</h1>
@@ -222,20 +225,50 @@ class WPR_License {
                 <h2 style="margin-top: 0;">📊 Aktueller Status</h2>
                 
                 <?php if ($license_info['valid']) : ?>
-                    <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: #047857;">✅ Pro-Lizenz aktiv</h3>
-                        <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(ucfirst($license_info['type'])); ?></p>
-                        <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo $is_unlimited ? '∞ Unbegrenzt' : esc_html($license_info['max_items']); ?></p>
-                        <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
-                            <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
-                        <?php endif; ?>
-                    </div>
+                    <?php if ($is_over_limit) : ?>
+                        <!-- Lizenz aktiv, aber über Limit -->
+                        <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Lizenz-Limit überschritten!</h3>
+                            <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(ucfirst($license_info['type'])); ?></p>
+                            <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($license_info['max_items']); ?></span> (Überschreitung: <?php echo esc_html($total_items - $license_info['max_items']); ?>)</p>
+                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
+                                <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
+                            <?php endif; ?>
+                            <p style="margin: 15px 0 0 0; padding: 10px; background: #fff; border-radius: 4px;">
+                                <strong>⚠️ Achtung:</strong> Sie haben mehr Gerichte angelegt, als Ihre Lizenz erlaubt. 
+                                Bitte upgraden Sie Ihre Lizenz, um weitere Gerichte hinzuzufügen.
+                            </p>
+                        </div>
+                    <?php else : ?>
+                        <!-- Lizenz aktiv und im Rahmen -->
+                        <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0; color: #047857;">✅ Pro-Lizenz aktiv</h3>
+                            <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(ucfirst($license_info['type'])); ?></p>
+                            <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo $is_unlimited ? '∞ Unbegrenzt' : esc_html($license_info['max_items']); ?></p>
+                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
+                                <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 <?php else : ?>
-                    <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ Free Version</h3>
-                        <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($license_info['max_items']); ?> (Limit erreicht bei <?php echo esc_html($license_info['max_items']); ?>)</p>
-                        <p style="margin: 10px 0 0 0;">Aktivieren Sie eine Pro-Lizenz für unbegrenzte Gerichte!</p>
-                    </div>
+                    <?php if ($total_items > $license_info['max_items']) : ?>
+                        <!-- Free Version + über Limit -->
+                        <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0; color: #991b1b;">🔒 Limit überschritten!</h3>
+                            <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($license_info['max_items']); ?></span> (Überschreitung: <?php echo esc_html($total_items - $license_info['max_items']); ?>)</p>
+                            <p style="margin: 15px 0 0 0; padding: 10px; background: #fff; border-radius: 4px;">
+                                <strong>🔒 Sie haben das Free-Limit überschritten.</strong> 
+                                Aktivieren Sie eine Pro-Lizenz, um weitere Gerichte hinzuzufügen.
+                            </p>
+                        </div>
+                    <?php else : ?>
+                        <!-- Free Version + im Rahmen -->
+                        <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ Free Version</h3>
+                            <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($license_info['max_items']); ?> (Limit erreicht bei <?php echo esc_html($license_info['max_items']); ?>)</p>
+                            <p style="margin: 10px 0 0 0;">Aktivieren Sie eine Pro-Lizenz für unbegrenzte Gerichte!</p>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
             
