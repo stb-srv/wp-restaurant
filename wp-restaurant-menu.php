@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.5.0
+ * Version: 1.5.1
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.5.0');
+define('WP_RESTAURANT_MENU_VERSION', '1.5.1');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -365,7 +365,7 @@ function wpr_render_settings_page() {
                         <th scope="row"><label for="image_position">Bild-Position</label></th>
                         <td>
                             <select name="image_position" id="image_position" style="min-width: 200px;">
-                                <option value="top" <?php selected($settings['image_position'], 'top'); ?>>Oben (über dem Text)</option>
+                                <option value="top" <?php selected($settings['image_position'], 'top'); ?>>Über dem Text</option>
                                 <option value="left" <?php selected($settings['image_position'], 'left'); ?>>Links (neben dem Text)</option>
                             </select>
                         </td>
@@ -585,20 +585,48 @@ function wpr_save_meta($post_id) {
 add_action('save_post', 'wpr_save_meta');
 
 function wpr_check_item_limit_before_save($post_id) {
+    // Nur für Menüpunkte
     if (get_post_type($post_id) !== 'wpr_menu_item') return;
-    if (get_post_status($post_id) !== 'auto-draft' && get_post_status($post_id) !== 'draft') return;
     
+    // Nur bei neuen Gerichten prüfen (nicht beim Bearbeiten)
+    $post_status = get_post_status($post_id);
+    if ($post_status !== 'auto-draft' && $post_status !== 'draft') {
+        // Wenn es bereits veröffentlicht ist, nicht blockieren
+        $old_status = get_post_meta($post_id, '_wpr_old_status', true);
+        if ($old_status === 'publish') {
+            return;
+        }
+    }
+    
+    // Lizenz-Infos holen
     $license = WPR_License::get_license_info();
-    if ($license['valid']) return;
     
+    // Prüfe ob unbegrenzt (unlimited_items Feature ODER max_items >= 999)
+    $is_unlimited = $license['valid'] && (
+        in_array('unlimited_items', $license['features']) || 
+        $license['max_items'] >= 999
+    );
+    
+    // Wenn unbegrenzt, kein Limit
+    if ($is_unlimited) return;
+    
+    // Aktuelle Anzahl zählen
     $count = wp_count_posts('wpr_menu_item');
     $total = $count->publish + $count->draft + $count->pending;
     
+    // Limit erreicht?
     if ($total >= $license['max_items']) {
+        $message = $license['valid'] 
+            ? '<h1>🔒 Lizenz-Limit erreicht</h1>' .
+              '<p>Ihre Lizenz erlaubt maximal <strong>' . $license['max_items'] . ' Gerichte</strong>.</p>' .
+              '<p>Sie haben bereits <strong>' . $total . ' Gerichte</strong> angelegt.</p>' .
+              '<p><a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary">🔑 Lizenz upgraden</a></p>'
+            : '<h1>🔒 Limit erreicht</h1>' .
+              '<p>Sie haben das Maximum von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht.</p>' .
+              '<p><a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary">🔑 Jetzt Pro-Lizenz aktivieren</a></p>';
+        
         wp_die(
-            '<h1>🔒 Limit erreicht</h1>' .
-            '<p>Sie haben das Maximum von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht.</p>' .
-            '<p><a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary">🔑 Jetzt Pro-Lizenz aktivieren</a></p>',
+            $message,
             'Limit erreicht',
             array('back_link' => true)
         );
@@ -606,26 +634,54 @@ function wpr_check_item_limit_before_save($post_id) {
 }
 add_action('save_post', 'wpr_check_item_limit_before_save', 1);
 
+// Speichere alten Status vor Update
+function wpr_remember_post_status($post_id) {
+    if (get_post_type($post_id) === 'wpr_menu_item') {
+        $status = get_post_status($post_id);
+        update_post_meta($post_id, '_wpr_old_status', $status);
+    }
+}
+add_action('pre_post_update', 'wpr_remember_post_status');
+
 function wpr_admin_notices() {
     $screen = get_current_screen();
-    if ($screen->post_type !== 'wpr_menu_item') return;
+    if (!$screen || $screen->post_type !== 'wpr_menu_item') return;
     
     $license = WPR_License::get_license_info();
-    if ($license['valid']) return;
+    
+    // Prüfe ob unbegrenzt
+    $is_unlimited = $license['valid'] && (
+        in_array('unlimited_items', $license['features']) || 
+        $license['max_items'] >= 999
+    );
+    
+    if ($is_unlimited) return;
     
     $count = wp_count_posts('wpr_menu_item');
     $total = $count->publish + $count->draft + $count->pending;
     $remaining = $license['max_items'] - $total;
     
     if ($remaining <= 5 && $remaining > 0) {
+        $upgrade_text = $license['valid'] 
+            ? 'Lizenz upgraden'
+            : 'Jetzt upgraden';
+        
         echo '<div class="notice notice-warning">';
         echo '<p><strong>⚠️ Achtung:</strong> Sie haben noch <strong>' . $remaining . ' von ' . $license['max_items'] . ' Gerichten</strong> verfügbar. ';
-        echo '<a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '">Jetzt upgraden</a> für unbegrenzte Gerichte.</p>';
+        echo '<a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '">' . $upgrade_text . '</a> für mehr Gerichte.</p>';
         echo '</div>';
     } elseif ($remaining <= 0) {
+        $limit_text = $license['valid']
+            ? '<strong>🔒 Lizenz-Limit erreicht:</strong> Sie haben das Maximum Ihrer Lizenz von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht.'
+            : '<strong>🔒 Limit erreicht:</strong> Sie haben das Maximum von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht.';
+        
+        $button_text = $license['valid'] 
+            ? '🔑 Lizenz upgraden'
+            : '🔑 Pro-Lizenz aktivieren';
+        
         echo '<div class="notice notice-error">';
-        echo '<p><strong>🔒 Limit erreicht:</strong> Sie haben das Maximum von <strong>' . $license['max_items'] . ' Gerichten</strong> erreicht. ';
-        echo '<a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary" style="margin-left: 10px;">🔑 Pro-Lizenz aktivieren</a></p>';
+        echo '<p>' . $limit_text . ' ';
+        echo '<a href="' . admin_url('edit.php?post_type=wpr_menu_item&page=wpr-license') . '" class="button button-primary" style="margin-left: 10px;">' . $button_text . '</a></p>';
         echo '</div>';
     }
 }
