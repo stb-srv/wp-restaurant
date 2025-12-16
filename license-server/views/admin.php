@@ -31,6 +31,9 @@ $stats = get_stats();
             <a href="?tab=licenses" class="tab <?php echo $current_tab === 'licenses' ? 'active' : ''; ?>">
                 🎫 Lizenzen
             </a>
+            <a href="?tab=clients" class="tab <?php echo $current_tab === 'clients' ? 'active' : ''; ?>">
+                🌐 Clients
+            </a>
             <a href="?tab=pricing" class="tab <?php echo $current_tab === 'pricing' ? 'active' : ''; ?>">
                 💰 Preise
             </a>
