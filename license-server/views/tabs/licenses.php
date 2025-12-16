@@ -36,14 +36,12 @@ if ((isset($_POST['add_license']) || isset($_POST['edit_license'])) && verify_cs
         $expires = $now->format('Y-m-d');
     }
     
-    // Features basierend auf Typ
+    // Features basierend auf Typ - KEINE unlimited_items mehr!
     $features = [];
-    if ($type === 'pro' || $type === 'pro_plus') {
-        $features[] = 'unlimited_items';
-    }
     if ($type === 'pro_plus') {
         $features[] = 'dark_mode';
     }
+    // PRO hat KEINE speziellen Features mehr, nur max_items zählt!
     
     $license_data = [
         'type' => $type,
@@ -132,8 +130,8 @@ $licenses = get_licenses();
                     <label>Typ</label>
                     <select name="type" required id="type-select" onchange="updateMaxItems()">
                         <option value="free" <?php echo ($edit_mode && $edit_license['type'] === 'free') ? 'selected' : ''; ?>>FREE (max 20 Gerichte)</option>
-                        <option value="pro" <?php echo ($edit_mode && $edit_license['type'] === 'pro') ? 'selected' : ''; ?>>PRO (Unbegrenzt)</option>
-                        <option value="pro_plus" <?php echo ($edit_mode && $edit_license['type'] === 'pro_plus') ? 'selected' : ''; ?>>PRO+ (Unbegrenzt + Dark Mode)</option>
+                        <option value="pro" <?php echo ($edit_mode && $edit_license['type'] === 'pro') ? 'selected' : ''; ?>>PRO (Standard 200)</option>
+                        <option value="pro_plus" <?php echo ($edit_mode && $edit_license['type'] === 'pro_plus') ? 'selected' : ''; ?>>PRO+ (Standard 200 + Dark Mode)</option>
                     </select>
                 </div>
                 
@@ -175,7 +173,7 @@ $licenses = get_licenses();
                         min="1"
                         value="<?php echo $edit_mode ? $edit_license['max_items'] : 20; ?>"
                     >
-                    <small style="color: #6b7280; font-size: 12px;">Standard: FREE=20, PRO/PRO+=999999</small>
+                    <small style="color: #6b7280; font-size: 12px;">Standard: FREE=20, PRO/PRO+=200 (individuell anpassbar!)</small>
                 </div>
             </div>
             
@@ -215,17 +213,12 @@ $licenses = get_licenses();
                             $is_expired = isset($license['expires']) && $license['expires'] !== 'lifetime' && strtotime($license['expires']) < time();
                             $status_class = $is_expired ? 'status-expired' : 'status-active';
                             
-                            // Features anzeigen
+                            // Features anzeigen - NUR Dark Mode!
                             $features_str = '';
                             if (isset($license['features']) && !empty($license['features'])) {
-                                $features_badges = [];
-                                if (in_array('unlimited_items', $license['features'])) {
-                                    $features_badges[] = '∞';
-                                }
                                 if (in_array('dark_mode', $license['features'])) {
-                                    $features_badges[] = '🌙';
+                                    $features_str = '🌙';
                                 }
-                                $features_str = implode(' ', $features_badges);
                             }
                             ?>
                             <tr>
@@ -285,7 +278,7 @@ function updateMaxItems() {
         if (type === 'free') {
             maxItemsInput.value = 20;
         } else if (type === 'pro' || type === 'pro_plus') {
-            maxItemsInput.value = 999999;
+            maxItemsInput.value = 200; // NEU: Standard 200 statt 999999!
         }
     }
 }
