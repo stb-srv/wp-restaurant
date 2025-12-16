@@ -1,153 +1,100 @@
 <?php
 /**
- * License Server - One-Click Installer mit MySQL Datenbank
+ * License Server - One-Click Installer mit Datenbank-Setup
  */
 
 define('LICENSE_SERVER', true);
 
+// Prüfe ob DB-Config existiert
+$db_config_exists = file_exists(__DIR__ . '/db-config.php');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
-    // Daten sammeln
-    $db_host = trim($_POST['db_host']);
-    $db_name = trim($_POST['db_name']);
-    $db_user = trim($_POST['db_user']);
-    $db_pass = $_POST['db_pass'];
-    $admin_username = trim($_POST['admin_username']);
-    $admin_password = $_POST['admin_password'];
-    $admin_email = trim($_POST['admin_email']);
-    
     $errors = [];
+    $step = $_POST['step'] ?? '1';
     
-    // Validierung
-    if (empty($db_host) || empty($db_name) || empty($db_user)) {
-        $errors[] = 'Alle Datenbank-Felder sind erforderlich';
-    }
-    if (strlen($admin_username) < 3) {
-        $errors[] = 'Username muss mindestens 3 Zeichen lang sein';
-    }
-    if (strlen($admin_password) < 8) {
-        $errors[] = 'Passwort muss mindestens 8 Zeichen lang sein';
-    }
-    if (!filter_var($admin_email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Ungültige E-Mail-Adresse';
-    }
-    
-    if (empty($errors)) {
-        // Datenbank-Verbindung testen
-        try {
-            $pdo = new PDO(
-                "mysql:host=$db_host;charset=utf8mb4",
-                $db_user,
-                $db_pass,
-                array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION)
-            );
+    if ($step === '1') {
+        // Schritt 1: Datenbank-Config
+        $db_host = trim($_POST['db_host']);
+        $db_name = trim($_POST['db_name']);
+        $db_user = trim($_POST['db_user']);
+        $db_pass = $_POST['db_pass'];
+        
+        // Validierung
+        if (empty($db_host) || empty($db_name) || empty($db_user)) {
+            $errors[] = 'Alle Datenbank-Felder sind erforderlich';
+        }
+        
+        if (empty($errors)) {
+            // DB-Config erstellen
+            $config_content = "<?php\n";
+            $config_content .= "if (!defined('LICENSE_SERVER')) {\n";
+            $config_content .= "    die('Direct access not allowed');\n";
+            $config_content .= "}\n\n";
+            $config_content .= "define('DB_HOST', '" . addslashes($db_host) . "');\n";
+            $config_content .= "define('DB_NAME', '" . addslashes($db_name) . "');\n";
+            $config_content .= "define('DB_USER', '" . addslashes($db_user) . "');\n";
+            $config_content .= "define('DB_PASS', '" . addslashes($db_pass) . "');\n";
             
-            // Datenbank erstellen falls nicht existiert
-            $pdo->exec("CREATE DATABASE IF NOT EXISTS `$db_name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-            $pdo->exec("USE `$db_name`");
+            file_put_contents(__DIR__ . '/db-config.php', $config_content);
             
             // Tabellen erstellen
+            require_once __DIR__ . '/includes/database.php';
+            $db = LicenseDB::getInstance();
             
-            // 1. Config-Tabelle
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS `config` (
-                    `key` VARCHAR(100) PRIMARY KEY,
-                    `value` TEXT NOT NULL,
-                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
+            if (!$db->createTables()) {
+                $errors[] = 'Fehler beim Erstellen der Tabellen. Prüfe die Datenbank-Zugangsdaten.';
+                @unlink(__DIR__ . '/db-config.php');
+            } else {
+                // Weiter zu Schritt 2
+                $step = '2';
+            }
+        }
+    }
+    
+    if ($step === '2' && empty($errors)) {
+        // Schritt 2: Admin-Daten
+        $admin_username = trim($_POST['admin_username']);
+        $admin_password = $_POST['admin_password'];
+        $admin_email = trim($_POST['admin_email']);
+        
+        if (strlen($admin_username) < 3) {
+            $errors[] = 'Username muss mindestens 3 Zeichen lang sein';
+        }
+        if (strlen($admin_password) < 8) {
+            $errors[] = 'Passwort muss mindestens 8 Zeichen lang sein';
+        }
+        if (!filter_var($admin_email, FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Ungültige E-Mail-Adresse';
+        }
+        
+        if (empty($errors)) {
+            require_once __DIR__ . '/includes/database.php';
+            $db = LicenseDB::getInstance();
             
-            // 2. Lizenzen-Tabelle
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS `licenses` (
-                    `key` VARCHAR(50) PRIMARY KEY,
-                    `type` VARCHAR(20) NOT NULL,
-                    `domain` VARCHAR(255) NOT NULL,
-                    `max_items` INT NOT NULL DEFAULT 20,
-                    `expires` VARCHAR(20) NOT NULL DEFAULT 'lifetime',
-                    `features` TEXT,
-                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX `idx_domain` (`domain`),
-                    INDEX `idx_type` (`type`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
+            // Admin-Config in DB speichern
+            $admin_config = array(
+                'username' => $admin_username,
+                'password' => password_hash($admin_password, PASSWORD_BCRYPT),
+                'email' => $admin_email,
+            );
             
-            // 3. Preise-Tabelle
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS `pricing` (
-                    `type` VARCHAR(20) PRIMARY KEY,
-                    `price` DECIMAL(10,2) NOT NULL,
-                    `currency` VARCHAR(10) NOT NULL,
-                    `label` VARCHAR(50) NOT NULL,
-                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-            
-            // 4. Logs-Tabelle
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS `logs` (
-                    `id` INT AUTO_INCREMENT PRIMARY KEY,
-                    `type` VARCHAR(20) NOT NULL,
-                    `message` TEXT NOT NULL,
-                    `ip` VARCHAR(50),
-                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX `idx_type` (`type`),
-                    INDEX `idx_created` (`created_at`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
-            
-            // 5. Rate Limiting Tabelle
-            $pdo->exec("
-                CREATE TABLE IF NOT EXISTS `rate_limits` (
-                    `id` INT AUTO_INCREMENT PRIMARY KEY,
-                    `identifier` VARCHAR(100) NOT NULL,
-                    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX `idx_identifier` (`identifier`),
-                    INDEX `idx_created` (`created_at`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ");
+            $db->setConfig('admin', $admin_config);
             
             // API Key generieren
             $api_key = bin2hex(random_bytes(32));
+            $db->setConfig('api_key', $api_key);
             
-            // Config-Daten einfügen
-            $stmt = $pdo->prepare("INSERT INTO config (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)");
-            $stmt->execute(['admin_username', $admin_username]);
-            $stmt->execute(['admin_password', password_hash($admin_password, PASSWORD_BCRYPT)]);
-            $stmt->execute(['admin_email', $admin_email]);
-            $stmt->execute(['api_key', $api_key]);
-            $stmt->execute(['timezone', 'Europe/Berlin']);
-            $stmt->execute(['currency', '€']);
+            // Weitere Einstellungen
+            $db->setConfig('timezone', 'Europe/Berlin');
+            $db->setConfig('currency', '€');
             
-            // Standard-Preise einfügen
-            $stmt = $pdo->prepare("INSERT INTO pricing (type, price, currency, label) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE price = VALUES(price), currency = VALUES(currency), label = VALUES(label)");
-            $stmt->execute(['free', 0, '€', 'FREE']);
-            $stmt->execute(['pro', 29, '€', 'PRO']);
-            $stmt->execute(['pro_plus', 49, '€', 'PRO+']);
-            
-            // DB-Config-Datei erstellen
-            $db_config = "<?php\n";
-            $db_config .= "// Database Configuration - Auto-generated\n";
-            $db_config .= "define('DB_HOST', " . var_export($db_host, true) . ");\n";
-            $db_config .= "define('DB_NAME', " . var_export($db_name, true) . ");\n";
-            $db_config .= "define('DB_USER', " . var_export($db_user, true) . ");\n";
-            $db_config .= "define('DB_PASS', " . var_export($db_pass, true) . ");\n";
-            $db_config .= "define('DB_CHARSET', 'utf8mb4');\n";
-            
-            @mkdir(__DIR__ . '/data', 0755, true);
-            file_put_contents(__DIR__ . '/data/db-config.php', $db_config);
-            
-            // Verzeichnisse erstellen
-            @mkdir(__DIR__ . '/logs', 0755, true);
-            
-            // .htaccess für Sicherheit
-            $htaccess = "# Security\n";
-            $htaccess .= "<FilesMatch \"\\.(php|json)$\">\n";
-            $htaccess .= "    Order allow,deny\n";
-            $htaccess .= "    Deny from all\n";
-            $htaccess .= "</FilesMatch>\n";
-            
-            file_put_contents(__DIR__ . '/data/.htaccess', $htaccess);
+            // Standard-Preise in DB
+            $pricing = [
+                'free' => ['price' => 0, 'currency' => '€', 'label' => 'FREE'],
+                'pro' => ['price' => 29, 'currency' => '€', 'label' => 'PRO'],
+                'pro_plus' => ['price' => 49, 'currency' => '€', 'label' => 'PRO+'],
+            ];
+            $db->savePricing($pricing);
             
             // Installation abgeschlossen
             file_put_contents(__DIR__ . '/.installed', date('Y-m-d H:i:s'));
@@ -155,13 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
             // Weiterleitung
             header('Location: index.php');
             exit;
-            
-        } catch (PDOException $e) {
-            $errors[] = 'Datenbankfehler: ' . $e->getMessage();
         }
     }
 }
 
+$step = $_POST['step'] ?? '1';
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -200,26 +145,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
             margin-bottom: 30px;
             font-size: 14px;
         }
-        .section {
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
             margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e5e7eb;
         }
-        .section:last-child { border-bottom: none; }
-        .section h2 {
-            font-size: 18px;
-            color: #374151;
-            margin-bottom: 15px;
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .step.active {
+            background: #667eea;
+            color: white;
+        }
+        .step.done {
+            background: #10b981;
+            color: white;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         label {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             color: #374151;
             font-weight: 500;
-            font-size: 14px;
         }
         input {
             width: 100%;
@@ -266,25 +224,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
             font-size: 14px;
         }
         .info strong { color: #075985; }
-        small {
-            display: block;
-            color: #6b7280;
-            font-size: 12px;
-            margin-top: 4px;
-        }
     </style>
 </head>
 <body>
     <div class="installer">
-        <h1>🚀 License Server v2.0</h1>
-        <p class="subtitle">MySQL-Datenbank Installation</p>
+        <h1>🚀 License Server</h1>
+        <p class="subtitle">Installation in 2 einfachen Schritten</p>
         
-        <div class="info">
-            <strong>📊 MySQL-Vorteile:</strong><br>
-            • Keine Datenverluste bei Updates<br>
-            • Schneller & zuverlässiger<br>
-            • Automatische Backups möglich<br>
-            • Professionelle Lösung
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step <?php echo $step === '1' ? 'active' : ($step === '2' ? 'done' : ''); ?>">1</div>
+            <div class="step <?php echo $step === '2' ? 'active' : ''; ?>">2</div>
         </div>
         
         <?php if (!empty($errors)) : ?>
@@ -295,56 +245,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
             </div>
         <?php endif; ?>
         
-        <form method="post">
-            <!-- Datenbank-Konfiguration -->
-            <div class="section">
-                <h2>📦 1. MySQL Datenbank</h2>
+        <?php if ($step === '1') : ?>
+            <!-- Schritt 1: Datenbank -->
+            <div class="info">
+                <strong>📦 Schritt 1: Datenbank</strong><br>
+                Erstelle zuerst eine MySQL-Datenbank in deinem Hosting-Panel (z.B. cPanel, Plesk).<br>
+                Die Tabellen werden automatisch erstellt!
+            </div>
+            
+            <form method="post">
+                <input type="hidden" name="step" value="1">
                 
                 <div class="form-group">
-                    <label>Datenbank-Host</label>
-                    <input type="text" name="db_host" required placeholder="localhost oder sql113.infinityfree.com" value="<?php echo htmlspecialchars($_POST['db_host'] ?? 'localhost'); ?>">
-                    <small>Meist: localhost (bei lokalem Server) oder vom Hoster bereitgestellt</small>
+                    <label>📡 Datenbank-Host</label>
+                    <input type="text" name="db_host" required placeholder="localhost" value="<?php echo htmlspecialchars($_POST['db_host'] ?? 'localhost'); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label>Datenbank-Name</label>
+                    <label>💾 Datenbank-Name</label>
                     <input type="text" name="db_name" required placeholder="license_server" value="<?php echo htmlspecialchars($_POST['db_name'] ?? ''); ?>">
-                    <small>Name der Datenbank (wird erstellt falls nicht existiert)</small>
                 </div>
                 
                 <div class="form-group">
-                    <label>Datenbank-Benutzer</label>
+                    <label>👤 Datenbank-User</label>
                     <input type="text" name="db_user" required placeholder="root" value="<?php echo htmlspecialchars($_POST['db_user'] ?? ''); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label>Datenbank-Passwort</label>
-                    <input type="password" name="db_pass" placeholder="(optional bei localhost)">
+                    <label>🔒 Datenbank-Passwort</label>
+                    <input type="password" name="db_pass" placeholder="(optional für localhost)">
                 </div>
+                
+                <button type="submit" name="install">➡️ Weiter zu Schritt 2</button>
+            </form>
+        <?php else : ?>
+            <!-- Schritt 2: Admin -->
+            <div class="info">
+                <strong>👤 Schritt 2: Admin-Account</strong><br>
+                Erstelle deinen Admin-Zugang für das License-Server Dashboard.
             </div>
             
-            <!-- Admin-Account -->
-            <div class="section">
-                <h2>👤 2. Admin-Account</h2>
+            <form method="post">
+                <input type="hidden" name="step" value="2">
                 
                 <div class="form-group">
-                    <label>Admin Username</label>
+                    <label>👤 Admin Username</label>
                     <input type="text" name="admin_username" required minlength="3" placeholder="admin" value="<?php echo htmlspecialchars($_POST['admin_username'] ?? ''); ?>">
                 </div>
                 
                 <div class="form-group">
-                    <label>Admin Passwort</label>
+                    <label>🔒 Admin Passwort</label>
                     <input type="password" name="admin_password" required minlength="8" placeholder="Mindestens 8 Zeichen">
                 </div>
                 
                 <div class="form-group">
-                    <label>E-Mail</label>
-                    <input type="email" name="admin_email" required placeholder="admin@ihre-domain.com" value="<?php echo htmlspecialchars($_POST['admin_email'] ?? ''); ?>">
+                    <label>✉️ E-Mail</label>
+                    <input type="email" name="admin_email" required placeholder="admin@deine-domain.com" value="<?php echo htmlspecialchars($_POST['admin_email'] ?? ''); ?>">
                 </div>
-            </div>
-            
-            <button type="submit" name="install">✨ Jetzt installieren</button>
-        </form>
+                
+                <button type="submit" name="install">✨ Installation abschließen</button>
+            </form>
+        <?php endif; ?>
     </div>
 </body>
 </html>
