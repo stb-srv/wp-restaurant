@@ -1,6 +1,6 @@
 <?php
 /**
- * License Server - Helper Functions
+ * License Server - Helper Functions (MySQL)
  */
 
 if (!defined('LICENSE_SERVER')) {
@@ -21,58 +21,116 @@ function json_response($data, $status = 200) {
     exit;
 }
 
-// Preise laden
+// Preise laden (aus MySQL)
 function get_pricing() {
-    $file = DATA_DIR . '/pricing.json';
-    if (file_exists($file)) {
-        return json_decode(file_get_contents($file), true);
+    $db = get_db();
+    $stmt = $db->query("SELECT type, price, currency, label FROM pricing");
+    $rows = $stmt->fetchAll();
+    
+    $pricing = [];
+    foreach ($rows as $row) {
+        $pricing[$row['type']] = [
+            'price' => (int)$row['price'],
+            'currency' => $row['currency'],
+            'label' => $row['label'],
+        ];
     }
-    return [
-        'free' => ['price' => 0, 'currency' => '€', 'label' => 'FREE'],
-        'pro' => ['price' => 29, 'currency' => '€', 'label' => 'PRO'],
-        'pro_plus' => ['price' => 49, 'currency' => '€', 'label' => 'PRO+'],
-    ];
+    
+    return $pricing;
 }
 
 // Preise speichern
 function save_pricing($pricing) {
-    $file = DATA_DIR . '/pricing.json';
-    return file_put_contents($file, json_encode($pricing, JSON_PRETTY_PRINT));
+    $db = get_db();
+    $stmt = $db->prepare("INSERT INTO pricing (type, price, currency, label) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE price = VALUES(price), currency = VALUES(currency), label = VALUES(label)");
+    
+    foreach ($pricing as $type => $data) {
+        $stmt->execute([$type, $data['price'], $data['currency'], $data['label']]);
+    }
+    
+    return true;
 }
 
 // Lizenzen laden
 function get_licenses() {
-    $file = DATA_DIR . '/licenses.json';
-    if (file_exists($file)) {
-        return json_decode(file_get_contents($file), true);
+    $db = get_db();
+    $stmt = $db->query("SELECT * FROM licenses ORDER BY created_at DESC");
+    $rows = $stmt->fetchAll();
+    
+    $licenses = [];
+    foreach ($rows as $row) {
+        $licenses[$row['key']] = [
+            'type' => $row['type'],
+            'domain' => $row['domain'],
+            'max_items' => (int)$row['max_items'],
+            'expires' => $row['expires'],
+            'features' => json_decode($row['features'], true) ?: [],
+            'created_at' => $row['created_at'],
+            'updated_at' => $row['updated_at'],
+        ];
     }
-    return [];
+    
+    return $licenses;
 }
 
-// Lizenzen speichern
+// Lizenzen speichern (nicht mehr nötig - einzeln speichern)
 function save_licenses($licenses) {
-    $file = DATA_DIR . '/licenses.json';
-    return file_put_contents($file, json_encode($licenses, JSON_PRETTY_PRINT));
+    // Legacy-Funktion für Kompatibilität
+    return true;
 }
 
 // Einzelne Lizenz laden
 function get_license($key) {
-    $licenses = get_licenses();
-    return $licenses[strtoupper($key)] ?? null;
+    $db = get_db();
+    $stmt = $db->prepare("SELECT * FROM licenses WHERE `key` = ?");
+    $stmt->execute([strtoupper($key)]);
+    $row = $stmt->fetch();
+    
+    if (!$row) return null;
+    
+    return [
+        'type' => $row['type'],
+        'domain' => $row['domain'],
+        'max_items' => (int)$row['max_items'],
+        'expires' => $row['expires'],
+        'features' => json_decode($row['features'], true) ?: [],
+        'created_at' => $row['created_at'],
+        'updated_at' => $row['updated_at'],
+    ];
 }
 
 // Lizenz hinzufügen/aktualisieren
 function save_license($key, $data) {
-    $licenses = get_licenses();
-    $licenses[strtoupper($key)] = $data;
-    return save_licenses($licenses);
+    $db = get_db();
+    $stmt = $db->prepare("
+        INSERT INTO licenses (`key`, type, domain, max_items, expires, features) 
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+            type = VALUES(type),
+            domain = VALUES(domain),
+            max_items = VALUES(max_items),
+            expires = VALUES(expires),
+            features = VALUES(features)
+    ");
+    
+    $stmt->execute([
+        strtoupper($key),
+        $data['type'],
+        $data['domain'],
+        $data['max_items'],
+        $data['expires'],
+        json_encode($data['features']),
+    ]);
+    
+    return true;
 }
 
 // Lizenz löschen
 function delete_license($key) {
-    $licenses = get_licenses();
-    unset($licenses[strtoupper($key)]);
-    return save_licenses($licenses);
+    $db = get_db();
+    $stmt = $db->prepare("DELETE FROM licenses WHERE `key` = ?");
+    $stmt->execute([strtoupper($key)]);
+    return true;
 }
 
 // Lizenzschlüssel generieren
@@ -87,50 +145,46 @@ function generate_license_key($type = 'pro') {
     return $prefix . '-' . implode('-', $segments);
 }
 
-// Logging
+// Logging (in MySQL)
 function log_message($message, $type = 'info') {
-    $file = LOGS_DIR . '/server.log';
-    $timestamp = date('Y-m-d H:i:s');
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $entry = "[$timestamp] [$type] [$ip] $message\n";
-    @file_put_contents($file, $entry, FILE_APPEND | LOCK_EX);
+    $db = get_db();
+    $stmt = $db->prepare("INSERT INTO logs (type, message, ip) VALUES (?, ?, ?)");
+    $stmt->execute([$type, $message, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+    
+    // Alte Logs löschen (>älter als 30 Tage)
+    $db->exec("DELETE FROM logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
 }
 
 // Statistiken
 function get_stats() {
-    $licenses = get_licenses();
+    $db = get_db();
     
-    $stats = [
-        'total' => count($licenses),
-        'active' => 0,
-        'expired' => 0,
-        'by_type' => [
-            'free' => 0,
-            'pro' => 0,
-            'pro_plus' => 0,
-        ],
+    // Total
+    $stmt = $db->query("SELECT COUNT(*) as total FROM licenses");
+    $total = $stmt->fetch()['total'];
+    
+    // Aktiv/Expired
+    $stmt = $db->query("SELECT COUNT(*) as count FROM licenses WHERE expires = 'lifetime' OR expires >= CURDATE()");
+    $active = $stmt->fetch()['count'];
+    $expired = $total - $active;
+    
+    // By Type
+    $stmt = $db->query("SELECT type, COUNT(*) as count FROM licenses GROUP BY type");
+    $by_type = [
+        'free' => 0,
+        'pro' => 0,
+        'pro_plus' => 0,
     ];
-    
-    foreach ($licenses as $license) {
-        // Type zählen
-        $type = $license['type'] ?? 'free';
-        if (isset($stats['by_type'][$type])) {
-            $stats['by_type'][$type]++;
-        }
-        
-        // Aktiv/Expired
-        if (isset($license['expires'])) {
-            if ($license['expires'] === 'lifetime' || strtotime($license['expires']) > time()) {
-                $stats['active']++;
-            } else {
-                $stats['expired']++;
-            }
-        } else {
-            $stats['active']++;
-        }
+    while ($row = $stmt->fetch()) {
+        $by_type[$row['type']] = (int)$row['count'];
     }
     
-    return $stats;
+    return [
+        'total' => (int)$total,
+        'active' => (int)$active,
+        'expired' => (int)$expired,
+        'by_type' => $by_type,
+    ];
 }
 
 // Ablaufdatum berechnen
