@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.5.3
+ * Version: 1.5.4
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.5.3');
+define('WP_RESTAURANT_MENU_VERSION', '1.5.4');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -23,7 +23,6 @@ require_once WP_RESTAURANT_MENU_PLUGIN_DIR . 'includes/class-wpr-license.php';
 function wpr_activate() {
     wpr_register_post_type();
     wpr_register_taxonomies();
-    wpr_create_default_allergens();
     flush_rewrite_rules();
     
     if (!get_option('wpr_settings')) {
@@ -69,48 +68,6 @@ function wpr_check_settings() {
     }
 }
 add_action('plugins_loaded', 'wpr_check_settings');
-
-// Einmalige Bereinigung fehlerhafter Allergene
-function wpr_clean_allergens_once() {
-    if (get_option('wpr_allergens_cleaned')) return;
-    
-    // Alle Allergene holen
-    $all_allergens = get_terms(array(
-        'taxonomy' => 'wpr_allergen',
-        'hide_empty' => false,
-    ));
-    
-    $valid_names = array(
-        'A - Glutenhaltiges Getreide',
-        'B - Krebstiere',
-        'C - Eier',
-        'D - Fisch',
-        'E - Erdnüsse',
-        'F - Soja',
-        'G - Milch/Laktose',
-        'H - Schalenfrüchte',
-        'L - Sellerie',
-        'M - Senf',
-        'N - Sesamsamen',
-        'O - Schwefeldioxid',
-        'P - Lupinen',
-        'R - Weichtiere',
-    );
-    
-    // Lösche alle Terms, die nur Zahlen sind oder nicht in valid_names
-    if (!empty($all_allergens) && !is_wp_error($all_allergens)) {
-        foreach ($all_allergens as $term) {
-            // Wenn Name nur aus Zahlen besteht oder nicht in der Liste
-            if (is_numeric($term->name) || !in_array($term->name, $valid_names)) {
-                wp_delete_term($term->term_id, 'wpr_allergen');
-            }
-        }
-    }
-    
-    // Markiere als bereinigt
-    update_option('wpr_allergens_cleaned', true);
-}
-add_action('admin_init', 'wpr_clean_allergens_once');
 
 function wpr_deactivate() {
     flush_rewrite_rules();
@@ -162,27 +119,12 @@ function wpr_register_taxonomies() {
         'public' => false,
         'rewrite' => false,
     ));
-    
-    register_taxonomy('wpr_allergen', 'wpr_menu_item', array(
-        'labels' => array(
-            'name' => 'Allergene',
-            'singular_name' => 'Allergen',
-            'add_new_item' => 'Neues Allergen hinzufügen',
-            'edit_item' => 'Allergen bearbeiten',
-            'menu_name' => 'Allergene',
-        ),
-        'hierarchical' => false,
-        'show_ui' => true,
-        'show_admin_column' => false,
-        'public' => false,
-        'rewrite' => false,
-        'meta_box_cb' => false,
-    ));
 }
 add_action('init', 'wpr_register_taxonomies');
 
-function wpr_create_default_allergens() {
-    $allergens = array(
+// Allergene als Array definieren
+function wpr_get_allergens() {
+    return array(
         'a' => array('name' => 'A - Glutenhaltiges Getreide', 'icon' => '🌾'),
         'b' => array('name' => 'B - Krebstiere', 'icon' => '🦀'),
         'c' => array('name' => 'C - Eier', 'icon' => '🥚'),
@@ -198,28 +140,6 @@ function wpr_create_default_allergens() {
         'p' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
         'r' => array('name' => 'R - Weichtiere', 'icon' => '🦐'),
     );
-    
-    foreach ($allergens as $slug => $data) {
-        // Prüfe zuerst ob Term mit diesem Namen existiert
-        $existing = get_term_by('name', $data['name'], 'wpr_allergen');
-        
-        if (!$existing) {
-            // Erstelle nur wenn nicht vorhanden
-            $term = wp_insert_term($data['name'], 'wpr_allergen', array(
-                'slug' => $slug,
-            ));
-            
-            if (!is_wp_error($term)) {
-                add_term_meta($term['term_id'], 'icon', $data['icon'], true);
-            }
-        } else {
-            // Update Icon falls fehlend
-            $icon = get_term_meta($existing->term_id, 'icon', true);
-            if (empty($icon)) {
-                update_term_meta($existing->term_id, 'icon', $data['icon']);
-            }
-        }
-    }
 }
 
 function wpr_enqueue_styles() {
@@ -474,43 +394,27 @@ function wpr_render_meta_box($post) {
 }
 
 function wpr_allergen_meta_box($post) {
-    $allergens = get_terms(array(
-        'taxonomy' => 'wpr_allergen',
-        'hide_empty' => false,
-        'orderby' => 'name',
-        'order' => 'ASC',
-    ));
-    
-    $post_allergens = wp_get_post_terms($post->ID, 'wpr_allergen', array('fields' => 'ids'));
-    if (is_wp_error($post_allergens)) {
-        $post_allergens = array();
-    }
+    $allergens = wpr_get_allergens();
+    $saved_allergens = get_post_meta($post->ID, '_wpr_allergens', true);
+    if (!is_array($saved_allergens)) $saved_allergens = array();
     ?>
     <div style="padding: 10px;">
-        <?php if (empty($allergens) || is_wp_error($allergens)) : ?>
-            <p style="color: #666; font-size: 13px;">Keine Allergene gefunden.</p>
-        <?php else : ?>
-            <div style="max-height: 400px; overflow-y: auto;">
-                <?php foreach ($allergens as $allergen) : 
-                    $icon = get_term_meta($allergen->term_id, 'icon', true);
-                ?>
-                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 5px; background: #f9fafb; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
-                           onmouseover="this.style.background='#f3f4f6';" 
-                           onmouseout="this.style.background='#f9fafb';">
-                        <input 
-                            type="checkbox" 
-                            name="tax_input[wpr_allergen][]" 
-                            value="<?php echo esc_attr($allergen->term_id); ?>"
-                            <?php checked(in_array($allergen->term_id, $post_allergens)); ?>
-                        />
-                        <?php if ($icon) : ?>
-                            <span style="font-size: 16px;"><?php echo esc_html($icon); ?></span>
-                        <?php endif; ?>
-                        <span style="font-size: 13px;"><?php echo esc_html($allergen->name); ?></span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        <div style="max-height: 400px; overflow-y: auto;">
+            <?php foreach ($allergens as $slug => $data) : ?>
+                <label style="display: flex; align-items: center; gap: 8px; padding: 8px; margin-bottom: 5px; background: #f9fafb; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+                       onmouseover="this.style.background='#f3f4f6';" 
+                       onmouseout="this.style.background='#f9fafb';">
+                    <input 
+                        type="checkbox" 
+                        name="wpr_allergens[]" 
+                        value="<?php echo esc_attr($slug); ?>"
+                        <?php checked(in_array($slug, $saved_allergens)); ?>
+                    />
+                    <span style="font-size: 16px;"><?php echo esc_html($data['icon']); ?></span>
+                    <span style="font-size: 13px;"><?php echo esc_html($data['name']); ?></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
     </div>
     <?php
 }
@@ -528,6 +432,12 @@ function wpr_save_meta($post_id) {
     }
     update_post_meta($post_id, '_wpr_vegetarian', isset($_POST['wpr_vegetarian']) ? '1' : '0');
     update_post_meta($post_id, '_wpr_vegan', isset($_POST['wpr_vegan']) ? '1' : '0');
+    
+    // Allergene speichern
+    $allergens = isset($_POST['wpr_allergens']) && is_array($_POST['wpr_allergens']) 
+        ? array_map('sanitize_text_field', $_POST['wpr_allergens']) 
+        : array();
+    update_post_meta($post_id, '_wpr_allergens', $allergens);
 }
 add_action('save_post', 'wpr_save_meta');
 
@@ -850,12 +760,27 @@ function wpr_render_grid_menu($atts, $show_images, $image_position, $columns) {
 function wpr_render_single_item($item, $show_images, $image_position) {
     $dish_number = get_post_meta($item->ID, '_wpr_dish_number', true);
     $price = get_post_meta($item->ID, '_wpr_price', true);
-    $allergens = wp_get_post_terms($item->ID, 'wpr_allergen');
+    $allergen_slugs = get_post_meta($item->ID, '_wpr_allergens', true);
     $vegan = get_post_meta($item->ID, '_wpr_vegan', true);
     $vegetarian = get_post_meta($item->ID, '_wpr_vegetarian', true);
     $has_image = has_post_thumbnail($item->ID);
     $item_categories = wp_get_post_terms($item->ID, 'wpr_category', array('fields' => 'slugs'));
     $cat_classes = is_array($item_categories) ? implode(' ', array_map(function($c) { return 'wpr-cat-' . $c; }, $item_categories)) : '';
+    
+    // Hole Allergen-Daten
+    $all_allergens = wpr_get_allergens();
+    $allergens = array();
+    if (is_array($allergen_slugs)) {
+        foreach ($allergen_slugs as $slug) {
+            if (isset($all_allergens[$slug])) {
+                $allergens[] = array(
+                    'slug' => $slug,
+                    'name' => $all_allergens[$slug]['name'],
+                    'icon' => $all_allergens[$slug]['icon'],
+                );
+            }
+        }
+    }
     
     ob_start();
     ?>
@@ -901,14 +826,10 @@ function wpr_render_single_item($item, $show_images, $image_position) {
                             <span class="wpr-badge wpr-badge-vegetarian">🌱 Vegetarisch</span>
                         <?php endif; ?>
                         
-                        <?php if (!empty($allergens) && !is_wp_error($allergens)) : ?>
-                            <?php foreach ($allergens as $allergen) : 
-                                $icon = get_term_meta($allergen->term_id, 'icon', true);
-                            ?>
-                                <span class="wpr-badge wpr-badge-allergen" title="<?php echo esc_attr($allergen->name); ?>">
-                                    <?php if ($icon) : ?>
-                                        <?php echo esc_html($icon); ?>
-                                    <?php endif; ?>
+                        <?php if (!empty($allergens)) : ?>
+                            <?php foreach ($allergens as $allergen) : ?>
+                                <span class="wpr-badge wpr-badge-allergen" title="<?php echo esc_attr($allergen['name']); ?>">
+                                    <?php echo esc_html($allergen['icon']); ?>
                                 </span>
                             <?php endforeach; ?>
                         <?php endif; ?>
