@@ -223,16 +223,69 @@
     border: 1px solid #fde68a;
 }
 
+/* Allergen Badge mit CSS Tooltip */
 .wpr-badge-allergen {
     background: #fee2e2;
     color: #991b1b;
     border: 1px solid #fca5a5;
     cursor: help;
+    position: relative;
+    font-size: 1.2em;
+    padding: 6px 10px;
 }
 
 .wpr-badge-allergen:hover {
     background: #fca5a5;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    z-index: 10;
+}
+
+/* CSS Tooltip */
+.wpr-badge-allergen::before {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+/* Tooltip Pfeil */
+.wpr-badge-allergen::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.wpr-badge-allergen:hover::before,
+.wpr-badge-allergen:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-4px);
 }
 
 .wpr-allergen-icon {
