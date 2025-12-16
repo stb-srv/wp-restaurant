@@ -123,7 +123,11 @@
 .wpr-accordion-grid .wpr-menu-item:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    background: #fff;
+}
+
+/* FIX: Dark Mode Hover - Background bleibt dunkel! */
+body.wpr-dark-mode .wpr-accordion-grid .wpr-menu-item:hover {
+    background: #1f2937 !important; /* Dunkel bleiben! */
 }
 
 /* Dish Number Badge */
@@ -495,6 +499,11 @@
 .wpr-menu-item:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* FIX: Dark Mode Hover - Background bleibt dunkel! */
+body.wpr-dark-mode .wpr-menu-item:hover {
+    background: #1f2937 !important; /* Dunkel bleiben statt weiß! */
 }
 
 .wpr-menu-item.wpr-has-image-top {
