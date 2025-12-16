@@ -5,27 +5,42 @@
 
 define('LICENSE_SERVER', true);
 
-// Prüfe ob DB-Config existiert
-$db_config_exists = file_exists(__DIR__ . '/db-config.php');
+// Prüfe ob bereits installiert
+if (file_exists(__DIR__ . '/.installed')) {
+    header('Location: index.php');
+    exit;
+}
 
+$errors = [];
+$success_step1 = false;
+$current_step = 1;
+
+// POST-Verarbeitung
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
-    $errors = [];
-    $step = $_POST['step'] ?? '1';
+    $post_step = (int)$_POST['step'];
     
-    if ($step === '1') {
-        // Schritt 1: Datenbank-Config
-        $db_host = trim($_POST['db_host']);
-        $db_name = trim($_POST['db_name']);
-        $db_user = trim($_POST['db_user']);
-        $db_pass = $_POST['db_pass'];
+    if ($post_step === 1) {
+        // ============================================
+        // SCHRITT 1: DATENBANK VERBINDUNG
+        // ============================================
+        $db_host = trim($_POST['db_host'] ?? '');
+        $db_name = trim($_POST['db_name'] ?? '');
+        $db_user = trim($_POST['db_user'] ?? '');
+        $db_pass = $_POST['db_pass'] ?? '';
         
         // Validierung
-        if (empty($db_host) || empty($db_name) || empty($db_user)) {
-            $errors[] = 'Alle Datenbank-Felder sind erforderlich';
+        if (empty($db_host)) {
+            $errors[] = 'Datenbank-Host ist erforderlich';
+        }
+        if (empty($db_name)) {
+            $errors[] = 'Datenbank-Name ist erforderlich';
+        }
+        if (empty($db_user)) {
+            $errors[] = 'Datenbank-User ist erforderlich';
         }
         
         if (empty($errors)) {
-            // DB-Config erstellen
+            // DB-Config Datei erstellen
             $config_content = "<?php\n";
             $config_content .= "if (!defined('LICENSE_SERVER')) {\n";
             $config_content .= "    die('Direct access not allowed');\n";
@@ -35,78 +50,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
             $config_content .= "define('DB_USER', '" . addslashes($db_user) . "');\n";
             $config_content .= "define('DB_PASS', '" . addslashes($db_pass) . "');\n";
             
-            file_put_contents(__DIR__ . '/db-config.php', $config_content);
-            
-            // Tabellen erstellen
-            require_once __DIR__ . '/includes/database.php';
-            $db = LicenseDB::getInstance();
-            
-            if (!$db->createTables()) {
-                $errors[] = 'Fehler beim Erstellen der Tabellen. Prüfe die Datenbank-Zugangsdaten.';
-                @unlink(__DIR__ . '/db-config.php');
+            if (!file_put_contents(__DIR__ . '/db-config.php', $config_content)) {
+                $errors[] = 'Konnte db-config.php nicht erstellen. Prüfe Schreibrechte!';
             } else {
-                // Weiter zu Schritt 2
-                $step = '2';
+                // Verbindung testen
+                try {
+                    require_once __DIR__ . '/includes/database.php';
+                    $db = LicenseDB::getInstance();
+                    
+                    if ($db->getConnection()) {
+                        // Tabellen erstellen
+                        if ($db->createTables()) {
+                            $success_step1 = true;
+                            $current_step = 2;
+                        } else {
+                            $errors[] = 'Konnte Tabellen nicht erstellen. Prüfe Datenbank-Rechte!';
+                            @unlink(__DIR__ . '/db-config.php');
+                        }
+                    } else {
+                        $errors[] = 'Verbindung zur Datenbank fehlgeschlagen!';
+                        @unlink(__DIR__ . '/db-config.php');
+                    }
+                } catch (Exception $e) {
+                    $errors[] = 'Datenbankfehler: ' . $e->getMessage();
+                    @unlink(__DIR__ . '/db-config.php');
+                }
             }
         }
-    }
-    
-    if ($step === '2' && empty($errors)) {
-        // Schritt 2: Admin-Daten
-        $admin_username = trim($_POST['admin_username']);
-        $admin_password = $_POST['admin_password'];
-        $admin_email = trim($_POST['admin_email']);
         
+    } elseif ($post_step === 2) {
+        // ============================================
+        // SCHRITT 2: ADMIN ACCOUNT
+        // ============================================
+        $admin_username = trim($_POST['admin_username'] ?? '');
+        $admin_password = $_POST['admin_password'] ?? '';
+        $admin_email = trim($_POST['admin_email'] ?? '');
+        
+        // Validierung
         if (strlen($admin_username) < 3) {
-            $errors[] = 'Username muss mindestens 3 Zeichen lang sein';
+            $errors[] = 'Admin-Username muss mindestens 3 Zeichen lang sein';
         }
         if (strlen($admin_password) < 8) {
-            $errors[] = 'Passwort muss mindestens 8 Zeichen lang sein';
+            $errors[] = 'Admin-Passwort muss mindestens 8 Zeichen lang sein';
         }
         if (!filter_var($admin_email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Ungültige E-Mail-Adresse';
         }
         
         if (empty($errors)) {
-            require_once __DIR__ . '/includes/database.php';
-            $db = LicenseDB::getInstance();
-            
-            // Admin-Config in DB speichern
-            $admin_config = array(
-                'username' => $admin_username,
-                'password' => password_hash($admin_password, PASSWORD_BCRYPT),
-                'email' => $admin_email,
-            );
-            
-            $db->setConfig('admin', $admin_config);
-            
-            // API Key generieren
-            $api_key = bin2hex(random_bytes(32));
-            $db->setConfig('api_key', $api_key);
-            
-            // Weitere Einstellungen
-            $db->setConfig('timezone', 'Europe/Berlin');
-            $db->setConfig('currency', '€');
-            
-            // Standard-Preise in DB
-            $pricing = [
-                'free' => ['price' => 0, 'currency' => '€', 'label' => 'FREE'],
-                'pro' => ['price' => 29, 'currency' => '€', 'label' => 'PRO'],
-                'pro_plus' => ['price' => 49, 'currency' => '€', 'label' => 'PRO+'],
-            ];
-            $db->savePricing($pricing);
-            
-            // Installation abgeschlossen
-            file_put_contents(__DIR__ . '/.installed', date('Y-m-d H:i:s'));
-            
-            // Weiterleitung
-            header('Location: index.php');
-            exit;
+            try {
+                require_once __DIR__ . '/includes/database.php';
+                $db = LicenseDB::getInstance();
+                
+                // Admin-Config in DB speichern
+                $admin_config = array(
+                    'username' => $admin_username,
+                    'password' => password_hash($admin_password, PASSWORD_BCRYPT),
+                    'email' => $admin_email,
+                );
+                
+                $db->setConfig('admin', $admin_config);
+                
+                // API Key generieren
+                $api_key = bin2hex(random_bytes(32));
+                $db->setConfig('api_key', $api_key);
+                
+                // Weitere Einstellungen
+                $db->setConfig('timezone', 'Europe/Berlin');
+                $db->setConfig('currency', '€');
+                
+                // Standard-Preise in DB
+                $pricing = [
+                    'free' => ['price' => 0, 'currency' => '€', 'label' => 'FREE'],
+                    'pro' => ['price' => 29, 'currency' => '€', 'label' => 'PRO'],
+                    'pro_plus' => ['price' => 49, 'currency' => '€', 'label' => 'PRO+'],
+                ];
+                $db->savePricing($pricing);
+                
+                // Installation abgeschlossen
+                file_put_contents(__DIR__ . '/.installed', date('Y-m-d H:i:s'));
+                
+                // Weiterleitung
+                header('Location: index.php');
+                exit;
+            } catch (Exception $e) {
+                $errors[] = 'Fehler beim Speichern: ' . $e->getMessage();
+            }
         }
+        
+        // Bei Fehlern zurück zu Schritt 2
+        $current_step = 2;
     }
 }
 
-$step = $_POST['step'] ?? '1';
+// Wenn Schritt 1 erfolgreich war, zeige Schritt 2
+if ($success_step1) {
+    $current_step = 2;
+}
+
+// Wenn db-config.php existiert, aber noch nicht installiert -> Schritt 2
+if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.installed')) {
+    $current_step = 2;
+}
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -178,6 +223,7 @@ $step = $_POST['step'] ?? '1';
             margin-bottom: 8px;
             color: #374151;
             font-weight: 500;
+            font-size: 14px;
         }
         input {
             width: 100%;
@@ -213,6 +259,16 @@ $step = $_POST['step'] ?? '1';
             border-radius: 8px;
             margin-bottom: 20px;
             border-left: 4px solid #ef4444;
+            font-size: 14px;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #10b981;
+            font-size: 14px;
         }
         .info {
             background: #f0f9ff;
@@ -222,8 +278,14 @@ $step = $_POST['step'] ?? '1';
             margin-bottom: 20px;
             border-left: 4px solid #0ea5e9;
             font-size: 14px;
+            line-height: 1.5;
         }
         .info strong { color: #075985; }
+        .hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -233,10 +295,11 @@ $step = $_POST['step'] ?? '1';
         
         <!-- Step Indicator -->
         <div class="step-indicator">
-            <div class="step <?php echo $step === '1' ? 'active' : ($step === '2' ? 'done' : ''); ?>">1</div>
-            <div class="step <?php echo $step === '2' ? 'active' : ''; ?>">2</div>
+            <div class="step <?php echo $current_step === 1 ? 'active' : 'done'; ?>">1</div>
+            <div class="step <?php echo $current_step === 2 ? 'active' : ''; ?>">2</div>
         </div>
         
+        <!-- Fehler anzeigen -->
         <?php if (!empty($errors)) : ?>
             <div class="error">
                 <?php foreach ($errors as $error) : ?>
@@ -245,11 +308,20 @@ $step = $_POST['step'] ?? '1';
             </div>
         <?php endif; ?>
         
-        <?php if ($step === '1') : ?>
-            <!-- Schritt 1: Datenbank -->
+        <!-- Erfolg Schritt 1 -->
+        <?php if ($success_step1) : ?>
+            <div class="success">
+                ✅ Datenbank erfolgreich verbunden! Tabellen wurden erstellt.
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($current_step === 1) : ?>
+            <!-- ============================================ -->
+            <!-- SCHRITT 1: DATENBANK -->
+            <!-- ============================================ -->
             <div class="info">
-                <strong>📦 Schritt 1: Datenbank</strong><br>
-                Erstelle zuerst eine MySQL-Datenbank in deinem Hosting-Panel (z.B. cPanel, Plesk).<br>
+                <strong>📦 Schritt 1: Datenbank-Verbindung</strong><br>
+                Erstelle zuerst eine MySQL-Datenbank in deinem Hosting-Panel (cPanel, Plesk, etc.).<br>
                 Die Tabellen werden automatisch erstellt!
             </div>
             
@@ -258,49 +330,101 @@ $step = $_POST['step'] ?? '1';
                 
                 <div class="form-group">
                     <label>📡 Datenbank-Host</label>
-                    <input type="text" name="db_host" required placeholder="localhost" value="<?php echo htmlspecialchars($_POST['db_host'] ?? 'localhost'); ?>">
+                    <input 
+                        type="text" 
+                        name="db_host" 
+                        required 
+                        placeholder="localhost" 
+                        value="<?php echo htmlspecialchars($_POST['db_host'] ?? 'localhost'); ?>"
+                    >
+                    <div class="hint">Meist "localhost". Bei InfinityFree: "sql123.infinityfree.com"</div>
                 </div>
                 
                 <div class="form-group">
                     <label>💾 Datenbank-Name</label>
-                    <input type="text" name="db_name" required placeholder="license_server" value="<?php echo htmlspecialchars($_POST['db_name'] ?? ''); ?>">
+                    <input 
+                        type="text" 
+                        name="db_name" 
+                        required 
+                        placeholder="license_server" 
+                        value="<?php echo htmlspecialchars($_POST['db_name'] ?? ''); ?>"
+                    >
+                    <div class="hint">Der Name deiner MySQL-Datenbank</div>
                 </div>
                 
                 <div class="form-group">
-                    <label>👤 Datenbank-User</label>
-                    <input type="text" name="db_user" required placeholder="root" value="<?php echo htmlspecialchars($_POST['db_user'] ?? ''); ?>">
+                    <label>👤 Datenbank-Benutzername</label>
+                    <input 
+                        type="text" 
+                        name="db_user" 
+                        required 
+                        placeholder="root" 
+                        value="<?php echo htmlspecialchars($_POST['db_user'] ?? ''); ?>"
+                    >
+                    <div class="hint">MySQL-User (nicht dein Admin-Name!)</div>
                 </div>
                 
                 <div class="form-group">
                     <label>🔒 Datenbank-Passwort</label>
-                    <input type="password" name="db_pass" placeholder="(optional für localhost)">
+                    <input 
+                        type="password" 
+                        name="db_pass" 
+                        placeholder="(optional für localhost)"
+                    >
+                    <div class="hint">MySQL-Passwort (kann bei localhost leer sein)</div>
                 </div>
                 
-                <button type="submit" name="install">➡️ Weiter zu Schritt 2</button>
+                <button type="submit" name="install">➡️ Verbindung testen & weiter</button>
             </form>
+            
         <?php else : ?>
-            <!-- Schritt 2: Admin -->
+            <!-- ============================================ -->
+            <!-- SCHRITT 2: ADMIN ACCOUNT -->
+            <!-- ============================================ -->
             <div class="info">
-                <strong>👤 Schritt 2: Admin-Account</strong><br>
-                Erstelle deinen Admin-Zugang für das License-Server Dashboard.
+                <strong>👤 Schritt 2: Admin-Account erstellen</strong><br>
+                Jetzt erstellst du deinen Login für das License-Server Dashboard.<br>
+                <strong>Wichtig:</strong> Dies ist NICHT die Datenbank-Login!
             </div>
             
             <form method="post">
                 <input type="hidden" name="step" value="2">
                 
                 <div class="form-group">
-                    <label>👤 Admin Username</label>
-                    <input type="text" name="admin_username" required minlength="3" placeholder="admin" value="<?php echo htmlspecialchars($_POST['admin_username'] ?? ''); ?>">
+                    <label>👤 Admin-Benutzername (fürs Dashboard)</label>
+                    <input 
+                        type="text" 
+                        name="admin_username" 
+                        required 
+                        minlength="3" 
+                        placeholder="admin" 
+                        value="<?php echo htmlspecialchars($_POST['admin_username'] ?? ''); ?>"
+                    >
+                    <div class="hint">Mindestens 3 Zeichen</div>
                 </div>
                 
                 <div class="form-group">
-                    <label>🔒 Admin Passwort</label>
-                    <input type="password" name="admin_password" required minlength="8" placeholder="Mindestens 8 Zeichen">
+                    <label>🔒 Admin-Passwort (fürs Dashboard)</label>
+                    <input 
+                        type="password" 
+                        name="admin_password" 
+                        required 
+                        minlength="8" 
+                        placeholder="Mindestens 8 Zeichen"
+                    >
+                    <div class="hint">Mindestens 8 Zeichen - Wähle ein sicheres Passwort!</div>
                 </div>
                 
                 <div class="form-group">
-                    <label>✉️ E-Mail</label>
-                    <input type="email" name="admin_email" required placeholder="admin@deine-domain.com" value="<?php echo htmlspecialchars($_POST['admin_email'] ?? ''); ?>">
+                    <label>✉️ E-Mail-Adresse</label>
+                    <input 
+                        type="email" 
+                        name="admin_email" 
+                        required 
+                        placeholder="admin@deine-domain.com" 
+                        value="<?php echo htmlspecialchars($_POST['admin_email'] ?? ''); ?>"
+                    >
+                    <div class="hint">Für Passwort-Wiederherstellung</div>
                 </div>
                 
                 <button type="submit" name="install">✨ Installation abschließen</button>
