@@ -1,0 +1,506 @@
+/* License Server - Admin Panel CSS */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+.header {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 24px;
+    color: #1f2937;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.btn-logout {
+    padding: 8px 16px;
+    background: #ef4444;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.btn-logout:hover {
+    background: #dc2626;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.tab {
+    padding: 12px 20px;
+    background: white;
+    color: #6b7280;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tab:hover {
+    background: #f9fafb;
+    color: #1f2937;
+}
+
+.tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+/* Card */
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.card h2 {
+    margin-bottom: 20px;
+    color: #1f2937;
+    font-size: 20px;
+}
+
+.card h3 {
+    margin-bottom: 15px;
+    color: #374151;
+    font-size: 16px;
+}
+
+.card.info {
+    background: #f0f9ff;
+    border-left: 4px solid #0ea5e9;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-card.green { border-left: 4px solid #10b981; }
+.stat-card.red { border-left: 4px solid #ef4444; }
+.stat-card.blue { border-left: 4px solid #3b82f6; }
+
+.stat-icon {
+    font-size: 36px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #374151;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-delete {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.btn-secondary:hover {
+    background: #d1d5db;
+}
+
+.btn-delete {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 8px 12px;
+}
+
+.btn-delete:hover {
+    background: #fecaca;
+}
+
+/* Alerts */
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid;
+}
+
+.alert.success {
+    background: #d1fae5;
+    color: #047857;
+    border-color: #10b981;
+}
+
+.alert.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #ef4444;
+}
+
+/* Table */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.licenses-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.licenses-table th,
+.licenses-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.licenses-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    font-size: 13px;
+}
+
+.licenses-table code {
+    background: #f3f4f6;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-free {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.badge-pro {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-pro_plus {
+    background: #1f2937;
+    color: #fbbf24;
+}
+
+/* Status */
+.status-active {
+    color: #047857;
+    font-weight: 600;
+}
+
+.status-expired {
+    color: #991b1b;
+    font-weight: 600;
+}
+
+/* Code blocks */
+.code-block {
+    display: block;
+    background: #1f2937;
+    color: #fbbf24;
+    padding: 15px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    margin: 10px 0;
+}
+
+pre.code-block {
+    white-space: pre-wrap;
+}
+
+code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+/* Pricing Grid */
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.pricing-card {
+    padding: 20px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.pricing-card.pro {
+    background: #fef3c7;
+    border-color: #d97706;
+}
+
+.pricing-card.pro-plus {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    color: white;
+}
+
+.pricing-card.pro-plus label {
+    color: #fbbf24;
+}
+
+.pricing-card.pro-plus input {
+    background: #111827;
+    color: white;
+    border-color: #374151;
+}
+
+/* License Distribution */
+.license-distribution {
+    margin-top: 20px;
+}
+
+.dist-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 50px;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.dist-label {
+    font-weight: 600;
+    color: #374151;
+}
+
+.dist-bar {
+    height: 24px;
+    background: #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.dist-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.dist-value {
+    text-align: right;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+/* Pricing Preview */
+.pricing-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.price-item {
+    text-align: center;
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.price-label {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+
+.price-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+/* Info Table */
+.info-table {
+    width: 100%;
+}
+
+.info-table td {
+    padding: 8px 0;
+}
+
+.info-table td:first-child {
+    width: 150px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+}
+
+/* API Section */
+.api-section {
+    margin-bottom: 30px;
+}
+
+.api-section h3 {
+    margin-bottom: 10px;
+}
+
+.api-section p {
+    margin: 10px 0;
+    color: #6b7280;
+}
+
+.api-section ul {
+    margin: 10px 0 10px 20px;
+    color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+}
