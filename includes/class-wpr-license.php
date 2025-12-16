@@ -30,6 +30,25 @@ class WPR_License {
         'WPR-PROPLUS-2025-KEY3-PHI',
     );
     
+    // Fallback Preise (falls Server nicht erreichbar)
+    private static $fallback_pricing = array(
+        'free' => array(
+            'price' => 0,
+            'currency' => '€',
+            'label' => 'FREE',
+        ),
+        'pro' => array(
+            'price' => 29,
+            'currency' => '€',
+            'label' => 'PRO',
+        ),
+        'pro_plus' => array(
+            'price' => 49,
+            'currency' => '€',
+            'label' => 'PRO+',
+        ),
+    );
+    
     // Lizenz-Server URL (später einstellbar)
     private static function get_server_url() {
         return get_option('wpr_license_server', '');
@@ -43,6 +62,52 @@ class WPR_License {
     // Prüfe ob PRO+ Master Key
     private static function is_master_key_pro_plus($key) {
         return in_array(strtoupper(trim($key)), self::$master_keys_pro_plus);
+    }
+    
+    // Preise vom Server holen (mit Caching)
+    public static function get_pricing() {
+        $cached = get_transient('wpr_pricing_data');
+        
+        // Gecachte Preise verwenden (24h Cache)
+        if ($cached !== false) {
+            return $cached;
+        }
+        
+        // Server-URL holen
+        $server_url = self::get_server_url();
+        
+        // Kein Server? Fallback verwenden
+        if (empty($server_url)) {
+            return self::$fallback_pricing;
+        }
+        
+        // Pricing-Endpoint aufrufen
+        $url = add_query_arg(array(
+            'action' => 'get_pricing',
+        ), $server_url);
+        
+        $response = wp_remote_get($url, array(
+            'timeout' => 5,
+            'sslverify' => false,
+        ));
+        
+        // Fehler? Fallback verwenden
+        if (is_wp_error($response)) {
+            return self::$fallback_pricing;
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+        
+        // Ungültige Daten? Fallback verwenden
+        if (!$data || !isset($data['pricing'])) {
+            return self::$fallback_pricing;
+        }
+        
+        // Preise cachen (24h)
+        set_transient('wpr_pricing_data', $data['pricing'], 86400);
+        
+        return $data['pricing'];
     }
     
     // Lizenz-Info abrufen (lokal gecached)
@@ -114,6 +179,7 @@ class WPR_License {
         
         $domain = $_SERVER['HTTP_HOST'];
         $url = add_query_arg(array(
+            'action' => 'check_license',
             'key' => $key,
             'domain' => $domain,
         ), $server_url);
@@ -242,12 +308,23 @@ class WPR_License {
         if (isset($_POST['wpr_save_server']) && check_admin_referer('wpr_license_action', 'wpr_license_nonce')) {
             $server_url = esc_url_raw($_POST['license_server']);
             update_option('wpr_license_server', $server_url);
-            echo '<div class="notice notice-success"><p>Server-URL gespeichert!</p></div>';
+            
+            // Cache löschen
+            delete_transient('wpr_pricing_data');
+            
+            echo '<div class="notice notice-success"><p>Server-URL gespeichert! Preise werden neu geladen.</p></div>';
+        }
+        
+        // Cache manuell löschen
+        if (isset($_POST['wpr_refresh_pricing']) && check_admin_referer('wpr_license_action', 'wpr_license_nonce')) {
+            delete_transient('wpr_pricing_data');
+            echo '<div class="notice notice-success"><p>Preis-Cache gelöscht! Preise werden neu vom Server geladen.</p></div>';
         }
         
         $license_info = self::get_license_info();
         $current_key = get_option('wpr_license_key', '');
         $server_url = self::get_server_url();
+        $pricing = self::get_pricing();
         
         $count = wp_count_posts('wpr_menu_item');
         $total_items = $count->publish + $count->draft + $count->pending;
@@ -301,13 +378,25 @@ class WPR_License {
             
             <!-- Lizenz-Pakete -->
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <h2 style="margin-top: 0;">🎯 Verfügbare Pakete</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">🎯 Verfügbare Pakete</h2>
+                    <?php if (!empty($server_url)) : ?>
+                        <form method="post" style="margin: 0;">
+                            <?php wp_nonce_field('wpr_license_action', 'wpr_license_nonce'); ?>
+                            <button type="submit" name="wpr_refresh_pricing" class="button" style="font-size: 0.9em;">
+                                🔄 Preise aktualisieren
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                </div>
                 
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                     <!-- FREE -->
                     <div style="padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                        <h3 style="margin: 0 0 10px 0;">FREE</h3>
-                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0;">0€</p>
+                        <h3 style="margin: 0 0 10px 0;"><?php echo esc_html($pricing['free']['label']); ?></h3>
+                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0;">
+                            <?php echo esc_html($pricing['free']['price']); ?><?php echo esc_html($pricing['free']['currency']); ?>
+                        </p>
                         <ul style="list-style: none; padding: 0; margin: 15px 0;">
                             <li style="margin: 8px 0;">✅ Bis zu 20 Gerichte</li>
                             <li style="margin: 8px 0;">✅ Alle Basis-Features</li>
@@ -317,8 +406,10 @@ class WPR_License {
                     
                     <!-- PRO -->
                     <div style="padding: 20px; border: 2px solid #d97706; border-radius: 8px; background: #fef3c7;">
-                        <h3 style="margin: 0 0 10px 0; color: #92400e;">PRO</h3>
-                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #92400e;">29€</p>
+                        <h3 style="margin: 0 0 10px 0; color: #92400e;"><?php echo esc_html($pricing['pro']['label']); ?></h3>
+                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #92400e;">
+                            <?php echo esc_html($pricing['pro']['price']); ?><?php echo esc_html($pricing['pro']['currency']); ?>
+                        </p>
                         <ul style="list-style: none; padding: 0; margin: 15px 0;">
                             <li style="margin: 8px 0;">✅ Unbegrenzte Gerichte</li>
                             <li style="margin: 8px 0;">✅ Alle Features</li>
@@ -328,8 +419,10 @@ class WPR_License {
                     
                     <!-- PRO+ -->
                     <div style="padding: 20px; border: 2px solid #1f2937; border-radius: 8px; background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: #fff;">
-                        <h3 style="margin: 0 0 10px 0; color: #fbbf24;">PRO+ 🌟</h3>
-                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #fbbf24;">49€</p>
+                        <h3 style="margin: 0 0 10px 0; color: #fbbf24;"><?php echo esc_html($pricing['pro_plus']['label']); ?> 🌟</h3>
+                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #fbbf24;">
+                            <?php echo esc_html($pricing['pro_plus']['price']); ?><?php echo esc_html($pricing['pro_plus']['currency']); ?>
+                        </p>
                         <ul style="list-style: none; padding: 0; margin: 15px 0;">
                             <li style="margin: 8px 0;">✅ Unbegrenzte Gerichte</li>
                             <li style="margin: 8px 0;">✅ Alle Features</li>
@@ -337,6 +430,12 @@ class WPR_License {
                         </ul>
                     </div>
                 </div>
+                
+                <?php if (empty($server_url)) : ?>
+                    <p style="margin: 15px 0 0 0; padding: 12px; background: #fef3c7; border-radius: 4px; color: #92400e;">
+                        💡 <strong>Hinweis:</strong> Preise werden aktuell als Fallback angezeigt. Konfigurieren Sie einen Lizenz-Server für dynamische Preise.
+                    </p>
+                <?php endif; ?>
             </div>
             
             <!-- Lizenz aktivieren -->
@@ -396,10 +495,10 @@ class WPR_License {
                                     id="license_server" 
                                     value="<?php echo esc_url($server_url); ?>" 
                                     class="regular-text"
-                                    placeholder="https://ihre-domain.com/lizenz-api.php"
+                                    placeholder="https://ihre-domain.com/license-api.php"
                                 />
                                 <p class="description">
-                                    URL zu Ihrem Lizenz-Server API-Endpoint.
+                                    URL zu Ihrem Lizenz-Server API-Endpoint. Der Server stellt Lizenzprüfung und Preise bereit.
                                 </p>
                             </td>
                         </tr>
