@@ -53,7 +53,8 @@ if (isset($_POST['push_url']) && verify_csrf_token($_POST['csrf_token'] ?? '')) 
         $api_key = $client['api_key'];
         
         // Aktuelle Server-URL
-        $server_url = 'https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/api.php';
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $server_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/api.php';
         
         // API-Endpoint des Clients
         $client_api = 'https://' . $domain . '/wpr-license-api.php';
@@ -66,36 +67,62 @@ if (isset($_POST['push_url']) && verify_csrf_token($_POST['csrf_token'] ?? '')) 
             'domain' => $domain,
         );
         
-        // Request senden
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $client_api);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        // Check if cURL is available
+        if (function_exists('curl_init')) {
+            // Use cURL
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $client_api);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+        } else {
+            // Fallback to file_get_contents
+            $options = array(
+                'http' => array(
+                    'method' => 'POST',
+                    'header' => 'Content-Type: application/x-www-form-urlencoded',
+                    'content' => http_build_query($post_data),
+                    'timeout' => 10,
+                ),
+                'ssl' => array(
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ),
+            );
+            
+            $context = stream_context_create($options);
+            $response = @file_get_contents($client_api, false, $context);
+            $http_code = 200; // Assume success if no error
+            
+            if ($response === false) {
+                $http_code = 500;
+            }
+        }
         
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($http_code === 200) {
+        if ($http_code === 200 && $response !== false) {
             $data = json_decode($response, true);
-            if ($data && $data['success']) {
+            if ($data && isset($data['success']) && $data['success']) {
                 $success = '✅ Server-URL erfolgreich zu ' . $domain . ' gepusht!';
                 log_message('Server-URL pushed to ' . $domain, 'info');
             } else {
                 $error = '❌ Fehler: ' . ($data['message'] ?? 'Unknown error');
             }
         } else {
-            $error = '❌ Verbindung fehlgeschlagen (HTTP ' . $http_code . ')';
+            $error = '❌ Verbindung fehlgeschlagen (HTTP ' . $http_code . '). Prüfe ob WordPress erreichbar ist.';
         }
     }
 }
 
 $db = LicenseDB::getInstance();
 $clients = $db->getConfig('clients', []);
-$current_server_url = 'https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/api.php';
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$current_server_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/api.php';
 ?>
 
 <div class="clients-page">
@@ -201,7 +228,8 @@ $current_server_url = 'https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP
                 <ul style="margin-top: 5px;">
                     <li>WP Restaurant Plugin installiert haben</li>
                     <li>Zu Lizenz-Verwaltung gehen</li>
-                    <li>API-Key wird automatisch generiert (anzeigen lassen)</li>
+                    <li>API-Key wird automatisch generiert</li>
+                    <li>API-Key kopieren (wird unten angezeigt)</li>
                 </ul>
             </li>
             
