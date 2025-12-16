@@ -60,6 +60,19 @@ class WPR_License {
         return update_option('wpr_license_server', esc_url_raw($url));
     }
     
+    // API-Key generieren/abrufen
+    public static function get_api_key() {
+        $api_key = get_option('wpr_api_key', '');
+        
+        // Wenn noch kein Key, generieren
+        if (empty($api_key)) {
+            $api_key = bin2hex(random_bytes(32));
+            update_option('wpr_api_key', $api_key);
+        }
+        
+        return $api_key;
+    }
+    
     // Prüfe ob Master Key
     private static function is_master_key($key) {
         return in_array(strtoupper(trim($key)), self::$master_keys);
@@ -320,6 +333,8 @@ class WPR_License {
         $current_key = get_option('wpr_license_key', '');
         $server_url = self::get_server_url();
         $pricing = self::get_pricing();
+        $api_key = self::get_api_key();
+        $current_domain = $_SERVER['HTTP_HOST'];
         
         $count = wp_count_posts('wpr_menu_item');
         $total_items = $count->publish + $count->draft + $count->pending;
@@ -331,6 +346,34 @@ class WPR_License {
         ?>
         <div class="wrap">
             <h1>🔑 Lizenz-Verwaltung</h1>
+            
+            <!-- API-Key Info (für License-Server Setup) -->
+            <div style="background: #f0f9ff; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #0ea5e9;">
+                <h2 style="margin-top: 0; color: #075985;">🔑 API-Konfiguration (für License-Server)</h2>
+                <p style="margin: 5px 0; color: #0369a1;">Um diese WordPress-Installation mit dem License-Server zu verbinden, verwende diese Informationen:</p>
+                
+                <table style="width: 100%; margin-top: 15px;">
+                    <tr>
+                        <td style="padding: 8px; background: #fff; border-radius: 4px; width: 150px;"><strong>Domain:</strong></td>
+                        <td style="padding: 8px; background: #fff; border-radius: 4px; margin-left: 10px;">
+                            <code style="background: #1f2937; color: #10b981; padding: 4px 8px; border-radius: 4px; font-size: 14px;"><?php echo esc_html($current_domain); ?></code>
+                            <button type="button" onclick="navigator.clipboard.writeText('<?php echo esc_js($current_domain); ?>');alert('Domain kopiert!')" class="button" style="margin-left: 10px;">📋 Kopieren</button>
+                        </td>
+                    </tr>
+                    <tr><td colspan="2" style="height: 10px;"></td></tr>
+                    <tr>
+                        <td style="padding: 8px; background: #fff; border-radius: 4px;"><strong>API-Key:</strong></td>
+                        <td style="padding: 8px; background: #fff; border-radius: 4px;">
+                            <code style="background: #1f2937; color: #fbbf24; padding: 4px 8px; border-radius: 4px; font-size: 12px; word-break: break-all;"><?php echo esc_html($api_key); ?></code>
+                            <button type="button" onclick="navigator.clipboard.writeText('<?php echo esc_js($api_key); ?>');alert('API-Key kopiert!')" class="button" style="margin-left: 10px;">📋 Kopieren</button>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p style="margin: 15px 0 0 0; color: #0369a1; font-size: 0.9em;">
+                    💡 <strong>Hinweis:</strong> Gib diese Daten im License-Server unter "Clients" ein, um diese Installation zu registrieren.
+                </p>
+            </div>
             
             <!-- Aktueller Status -->
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -378,7 +421,7 @@ class WPR_License {
                 <?php else : ?>
                     <div style="padding: 12px; background: #fef3c7; border-radius: 4px; margin-top: 15px;">
                         <p style="margin: 0; color: #92400e; font-size: 0.9em;">
-                            ⚠️ <strong>Hinweis:</strong> Kein Lizenz-Server konfiguriert. Kontaktieren Sie den Support.
+                            ⚠️ <strong>Hinweis:</strong> Kein Lizenz-Server konfiguriert. Registriere diese Installation im License-Server.
                         </p>
                     </div>
                 <?php endif; ?>
