@@ -240,9 +240,9 @@
     z-index: 10;
 }
 
-/* CSS Tooltip */
+/* CSS Tooltip - verwendet data-tooltip */
 .wpr-badge-allergen::before {
-    content: attr(title);
+    content: attr(data-tooltip);
     position: absolute;
     bottom: 100%;
     left: 50%;

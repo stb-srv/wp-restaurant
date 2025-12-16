@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.5.4
+ * Version: 1.5.5
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.5.4');
+define('WP_RESTAURANT_MENU_VERSION', '1.5.5');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -828,7 +828,7 @@ function wpr_render_single_item($item, $show_images, $image_position) {
                         
                         <?php if (!empty($allergens)) : ?>
                             <?php foreach ($allergens as $allergen) : ?>
-                                <span class="wpr-badge wpr-badge-allergen" title="<?php echo esc_attr($allergen['name']); ?>">
+                                <span class="wpr-badge wpr-badge-allergen" data-tooltip="<?php echo esc_attr($allergen['name']); ?>">
                                     <?php echo esc_html($allergen['icon']); ?>
                                 </span>
                             <?php endforeach; ?>
