@@ -3,7 +3,7 @@
  * Plugin Name: WP Restaurant Menu
  * Plugin URI: https://github.com/stb-srv/wp-restaurant
  * Description: Modernes WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten
- * Version: 1.5.2
+ * Version: 1.5.3
  * Author: STB-SRV
  * License: GPL-2.0+
  * Text Domain: wp-restaurant-menu
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     die('Direct access not allowed');
 }
 
-define('WP_RESTAURANT_MENU_VERSION', '1.5.2');
+define('WP_RESTAURANT_MENU_VERSION', '1.5.3');
 define('WP_RESTAURANT_MENU_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_RESTAURANT_MENU_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -69,6 +69,48 @@ function wpr_check_settings() {
     }
 }
 add_action('plugins_loaded', 'wpr_check_settings');
+
+// Einmalige Bereinigung fehlerhafter Allergene
+function wpr_clean_allergens_once() {
+    if (get_option('wpr_allergens_cleaned')) return;
+    
+    // Alle Allergene holen
+    $all_allergens = get_terms(array(
+        'taxonomy' => 'wpr_allergen',
+        'hide_empty' => false,
+    ));
+    
+    $valid_names = array(
+        'A - Glutenhaltiges Getreide',
+        'B - Krebstiere',
+        'C - Eier',
+        'D - Fisch',
+        'E - Erdnüsse',
+        'F - Soja',
+        'G - Milch/Laktose',
+        'H - Schalenfrüchte',
+        'L - Sellerie',
+        'M - Senf',
+        'N - Sesamsamen',
+        'O - Schwefeldioxid',
+        'P - Lupinen',
+        'R - Weichtiere',
+    );
+    
+    // Lösche alle Terms, die nur Zahlen sind oder nicht in valid_names
+    if (!empty($all_allergens) && !is_wp_error($all_allergens)) {
+        foreach ($all_allergens as $term) {
+            // Wenn Name nur aus Zahlen besteht oder nicht in der Liste
+            if (is_numeric($term->name) || !in_array($term->name, $valid_names)) {
+                wp_delete_term($term->term_id, 'wpr_allergen');
+            }
+        }
+    }
+    
+    // Markiere als bereinigt
+    update_option('wpr_allergens_cleaned', true);
+}
+add_action('admin_init', 'wpr_clean_allergens_once');
 
 function wpr_deactivate() {
     flush_rewrite_rules();
@@ -141,30 +183,40 @@ add_action('init', 'wpr_register_taxonomies');
 
 function wpr_create_default_allergens() {
     $allergens = array(
-        'A' => array('name' => 'A - Glutenhaltiges Getreide', 'icon' => '🌾'),
-        'B' => array('name' => 'B - Krebstiere', 'icon' => '🦀'),
-        'C' => array('name' => 'C - Eier', 'icon' => '🥚'),
-        'D' => array('name' => 'D - Fisch', 'icon' => '🐟'),
-        'E' => array('name' => 'E - Erdnüsse', 'icon' => '🥜'),
-        'F' => array('name' => 'F - Soja', 'icon' => '🌱'),
-        'G' => array('name' => 'G - Milch/Laktose', 'icon' => '🥛'),
-        'H' => array('name' => 'H - Schalenfrüchte', 'icon' => '🌰'),
-        'L' => array('name' => 'L - Sellerie', 'icon' => '🥬'),
-        'M' => array('name' => 'M - Senf', 'icon' => '🍯'),
-        'N' => array('name' => 'N - Sesamsamen', 'icon' => '🌾'),
-        'O' => array('name' => 'O - Schwefeldioxid', 'icon' => '🧪'),
-        'P' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
-        'R' => array('name' => 'R - Weichtiere', 'icon' => '🦐'),
+        'a' => array('name' => 'A - Glutenhaltiges Getreide', 'icon' => '🌾'),
+        'b' => array('name' => 'B - Krebstiere', 'icon' => '🦀'),
+        'c' => array('name' => 'C - Eier', 'icon' => '🥚'),
+        'd' => array('name' => 'D - Fisch', 'icon' => '🐟'),
+        'e' => array('name' => 'E - Erdnüsse', 'icon' => '🥜'),
+        'f' => array('name' => 'F - Soja', 'icon' => '🌱'),
+        'g' => array('name' => 'G - Milch/Laktose', 'icon' => '🥛'),
+        'h' => array('name' => 'H - Schalenfrüchte', 'icon' => '🌰'),
+        'l' => array('name' => 'L - Sellerie', 'icon' => '🥬'),
+        'm' => array('name' => 'M - Senf', 'icon' => '🍯'),
+        'n' => array('name' => 'N - Sesamsamen', 'icon' => '🌾'),
+        'o' => array('name' => 'O - Schwefeldioxid', 'icon' => '🧪'),
+        'p' => array('name' => 'P - Lupinen', 'icon' => '🌺'),
+        'r' => array('name' => 'R - Weichtiere', 'icon' => '🦐'),
     );
     
     foreach ($allergens as $slug => $data) {
-        if (!term_exists($slug, 'wpr_allergen')) {
+        // Prüfe zuerst ob Term mit diesem Namen existiert
+        $existing = get_term_by('name', $data['name'], 'wpr_allergen');
+        
+        if (!$existing) {
+            // Erstelle nur wenn nicht vorhanden
             $term = wp_insert_term($data['name'], 'wpr_allergen', array(
-                'slug' => strtolower($slug),
+                'slug' => $slug,
             ));
             
             if (!is_wp_error($term)) {
                 add_term_meta($term['term_id'], 'icon', $data['icon'], true);
+            }
+        } else {
+            // Update Icon falls fehlend
+            $icon = get_term_meta($existing->term_id, 'icon', true);
+            if (empty($icon)) {
+                update_term_meta($existing->term_id, 'icon', $data['icon']);
             }
         }
     }
