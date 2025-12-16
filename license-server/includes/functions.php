@@ -132,3 +132,37 @@ function get_stats() {
     
     return $stats;
 }
+
+// Ablaufdatum berechnen
+function calculate_expiry_date($option) {
+    if ($option === 'lifetime') {
+        return 'lifetime';
+    }
+    
+    $now = new DateTime();
+    
+    switch ($option) {
+        case '7d':
+            $now->modify('+7 days');
+            break;
+        case '31d':
+            $now->modify('+31 days');
+            break;
+        case '6m':
+            $now->modify('+6 months');
+            break;
+        case '12m':
+            $now->modify('+12 months');
+            break;
+        case '24m':
+            $now->modify('+24 months');
+            break;
+        case '36m':
+            $now->modify('+36 months');
+            break;
+        default:
+            return 'lifetime';
+    }
+    
+    return $now->format('Y-m-d');
+}
