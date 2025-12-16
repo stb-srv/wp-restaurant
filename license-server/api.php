@@ -158,14 +158,23 @@ try {
     ");
     $update_stmt->execute([$license['id']]);
     
+    // Max Items korrekt auslesen
+    $max_items = (int)$license['max_items'];
+    
+    // Features dynamisch basierend auf max_items
+    $features = ['priority_support'];
+    if ($max_items >= 999) {
+        $features[] = 'unlimited_items';
+    }
+    
     // Response
     json_response([
         'valid' => true,
         'license_key' => $license['license_key'],
-        'max_items' => (int)$license['max_items'],
+        'max_items' => $max_items,
         'expires' => $license['expires_at'],
         'customer' => $license['customer_name'],
-        'features' => ['unlimited_items', 'priority_support'],
+        'features' => $features,
     ]);
     
 } catch (PDOException $e) {

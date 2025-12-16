@@ -210,6 +210,9 @@ class WPR_License {
         $count = wp_count_posts('wpr_menu_item');
         $total_items = $count->publish + $count->draft + $count->pending;
         
+        // Prüfe ob unbegrenzt
+        $is_unlimited = $license_info['valid'] && (in_array('unlimited_items', $license_info['features']) || $license_info['max_items'] >= 999);
+        
         ?>
         <div class="wrap">
             <h1>🔑 Lizenz-Verwaltung</h1>
@@ -222,7 +225,7 @@ class WPR_License {
                     <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 20px;">
                         <h3 style="margin: 0 0 10px 0; color: #047857;">✅ Pro-Lizenz aktiv</h3>
                         <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(ucfirst($license_info['type'])); ?></p>
-                        <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / ∞ Unbegrenzt</p>
+                        <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo $is_unlimited ? '∞ Unbegrenzt' : esc_html($license_info['max_items']); ?></p>
                         <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
                             <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
                         <?php endif; ?>
