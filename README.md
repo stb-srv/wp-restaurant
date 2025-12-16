@@ -5,41 +5,62 @@
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-blue)
 ![License](https://img.shields.io/badge/license-GPL%20v2-green)
 
-## Beschreibung
-Ein einfaches WordPress-Plugin zur Verwaltung von Restaurant-Speisekarten.
+WP Restaurant Menu ist ein WordPress-Plugin zur einfachen Verwaltung und Ausgabe von Restaurant-Speisekarten.
+
+## Features
+- Custom Post Type für Menüpunkte (Gerichte & Getränke)
+- Kategorien (z. B. Vorspeisen, Hauptgerichte, Desserts, Getränke)
+- Menükarten (z. B. Hauptkarte, Mittagskarte, Getränkekarte)
+- Preise, Allergene, Kennzeichnung für vegan/vegetarisch
+- Shortcode-Ausgabe für flexible Platzierung in Seiten/Beiträgen
+- Kompatibel mit modernen WordPress-Themes und dem Block-Editor
 
 ## Installation
-1. Plugin in `wp-content/plugins/wp-restaurant/` hochladen
-2. Plugin im WordPress-Admin aktivieren
-3. Unter "Restaurant Menu" Gerichte anlegen
+1. Plugin-Verzeichnis `wp-restaurant` nach `wp-content/plugins/` hochladen.
+2. Im WordPress-Backend unter **Plugins** das Plugin **WP Restaurant Menu** aktivieren.
+3. Im Menüpunkt **Restaurant Menu** Grundeinstellungen prüfen und erste Gerichte anlegen.
 
-## Verwendung
+## Grundkonzept
+- Ein **Menüpunkt** entspricht einem Gericht oder Getränk.
+- **Kategorien** gruppieren Menüpunkte (z. B. Vorspeisen, Pizza, Pasta, Softdrinks).
+- **Menükarten** steuern, welche Menüpunkte wo ausgegeben werden (z. B. Hauptkarte, Mittagskarte).
 
-### Menüpunkte erstellen
-1. Gehe zu **Restaurant Menu** > **Neu hinzufügen**
-2. Fülle Name, Beschreibung, Preis aus
-3. Wähle Kategorie und Menükarte
-4. Veröffentlichen
+## Menüpunkte anlegen
+1. Gehe zu **Restaurant Menu → Neu hinzufügen**.
+2. Titel, Beschreibung und Preis ausfüllen.
+3. Optional: Kategorie, Menükarte, Allergene, vegan/vegetarisch setzen.
+4. Auf **Veröffentlichen** klicken.
 
-### Shortcode
-Zeige die Speisekarte auf einer Seite an:
+## Shortcodes
+### Standardausgabe
+Gibt alle sichtbaren Menüpunkte aus:
 
-```
+```php
 [restaurant_menu]
 ```
 
-Mit Filtern:
-```
+### Nach Menükarte filtern
+
+```php
 [restaurant_menu menu="hauptspeisekarte"]
+```
+
+### Nach Kategorie filtern
+
+```php
 [restaurant_menu category="vorspeisen"]
 ```
 
-## Features
-- Custom Post Type für Menüpunkte
-- Kategorien (Vorspeisen, Hauptgerichte, etc.)
-- Menükarten (Hauptkarte, Getränkekarte)
-- Preis, Allergene, Vegan/Vegetarisch
-- Shortcode zur Anzeige
+Mehrere Parameter können kombiniert werden, z. B. Menükarte + Kategorie.
+
+## Entwicklung
+- Mindestanforderungen: WordPress 5.8+, PHP 7.4+
+- Plugin-Hauptdatei: `wp-restaurant-menu.php`
+- Admin-Funktionalität: `admin/`
+- Öffentliche Ausgabe/Frontend: `public/`
+- Gemeinsame Logik/Hilfsfunktionen: `includes/`
+
+Pull Requests und Issues sind willkommen: https://github.com/stb-srv/wp-restaurant
 
 ## Lizenz
-GPL-2.0+
+Dieses Plugin steht unter der GPL-2.0+ Lizenz. Siehe `LICENSE` bzw. Plugin-Header für Details.
