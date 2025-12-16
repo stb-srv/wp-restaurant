@@ -1,15 +1,14 @@
 <?php
-// Einstellungen speichern
+// Einstellungen speichern (in DB!)
 if (isset($_POST['save_settings']) && verify_csrf_token($_POST['csrf_token'] ?? '')) {
-    $config = get_config();
-    $config['timezone'] = sanitize_input($_POST['timezone']);
-    $config['currency'] = sanitize_input($_POST['currency']);
+    $db = LicenseDB::getInstance();
+    $db->setConfig('timezone', sanitize_input($_POST['timezone']));
+    $db->setConfig('currency', sanitize_input($_POST['currency']));
     
-    file_put_contents(DATA_DIR . '/config.json', json_encode($config, JSON_PRETTY_PRINT));
     $success = 'Einstellungen gespeichert!';
 }
 
-// Passwort ändern
+// Passwort ändern (in DB!)
 if (isset($_POST['change_password']) && verify_csrf_token($_POST['csrf_token'] ?? '')) {
     $new_password = $_POST['new_password'];
     $confirm_password = $_POST['confirm_password'];
@@ -19,14 +18,24 @@ if (isset($_POST['change_password']) && verify_csrf_token($_POST['csrf_token'] ?
     } elseif ($new_password !== $confirm_password) {
         $error = 'Passwörter stimmen nicht überein!';
     } else {
-        $config = get_config();
-        $config['admin']['password'] = password_hash($new_password, PASSWORD_BCRYPT);
-        file_put_contents(DATA_DIR . '/config.json', json_encode($config, JSON_PRETTY_PRINT));
+        $db = LicenseDB::getInstance();
+        $admin = $db->getConfig('admin', []);
+        $admin['password'] = password_hash($new_password, PASSWORD_BCRYPT);
+        $db->setConfig('admin', $admin);
+        
         $success = 'Passwort erfolgreich geändert!';
     }
 }
 
+// Alte Logs löschen
+if (isset($_POST['clean_logs']) && verify_csrf_token($_POST['csrf_token'] ?? '')) {
+    $db = LicenseDB::getInstance();
+    $db->cleanOldLogs(30);
+    $success = 'Alte Logs gelöscht (> 30 Tage)!';
+}
+
 $config = get_config();
+$db = LicenseDB::getInstance();
 ?>
 
 <div class="settings-page">
@@ -85,6 +94,19 @@ $config = get_config();
         </form>
     </div>
     
+    <!-- Datenbank-Wartung -->
+    <div class="card">
+        <h2>🧹 Wartung</h2>
+        
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+            
+            <p>Lösche alle Logs, die älter als 30 Tage sind.</p>
+            
+            <button type="submit" name="clean_logs" class="btn-secondary">🗑️ Alte Logs löschen</button>
+        </form>
+    </div>
+    
     <!-- System Info -->
     <div class="card info">
         <h3>📊 System Information</h3>
@@ -98,12 +120,20 @@ $config = get_config();
                 <td><?php echo $_SERVER['SERVER_SOFTWARE'] ?? 'Unbekannt'; ?></td>
             </tr>
             <tr>
+                <td><strong>Datenbank:</strong></td>
+                <td>🟢 MySQL verbunden</td>
+            </tr>
+            <tr>
                 <td><strong>API Key:</strong></td>
                 <td><code><?php echo substr($config['api_key'] ?? '', 0, 16); ?>...</code></td>
             </tr>
             <tr>
                 <td><strong>Admin:</strong></td>
                 <td><?php echo htmlspecialchars($config['admin']['username'] ?? 'Unbekannt'); ?></td>
+            </tr>
+            <tr>
+                <td><strong>Installiert:</strong></td>
+                <td><?php echo file_exists(__DIR__ . '/../../.installed') ? file_get_contents(__DIR__ . '/../../.installed') : 'Unbekannt'; ?></td>
             </tr>
         </table>
     </div>

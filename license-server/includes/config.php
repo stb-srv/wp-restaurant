@@ -1,79 +1,41 @@
 <?php
 /**
- * License Server - Configuration Loader (MySQL)
+ * License Server - Configuration Loader (DB-basiert!)
  */
 
 if (!defined('LICENSE_SERVER')) {
     die('Direct access not allowed');
 }
 
-// Pfade
-define('DATA_DIR', __DIR__ . '/../data');
-define('LOGS_DIR', __DIR__ . '/../logs');
+// Datenbank-Manager laden
+require_once __DIR__ . '/database.php';
 
-// DB-Config laden
-if (file_exists(DATA_DIR . '/db-config.php')) {
-    require_once DATA_DIR . '/db-config.php';
-} else {
-    die('Database not configured. Please run installer.');
-}
-
-// PDO Connection
-function get_db() {
-    static $pdo = null;
-    
-    if ($pdo === null) {
-        try {
-            $pdo = new PDO(
-                'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET,
-                DB_USER,
-                DB_PASS,
-                array(
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                )
-            );
-        } catch (PDOException $e) {
-            error_log('Database connection failed: ' . $e->getMessage());
-            die('Database connection failed. Please check configuration.');
-        }
-    }
-    
-    return $pdo;
-}
-
-// Config aus DB laden
+// Config laden (aus DB!)
 function get_config() {
-    static $config = null;
+    $db = LicenseDB::getInstance();
     
-    if ($config === null) {
-        $db = get_db();
-        $stmt = $db->query("SELECT `key`, `value` FROM config");
-        $rows = $stmt->fetchAll();
-        
-        $config = [];
-        foreach ($rows as $row) {
-            $config[$row['key']] = $row['value'];
-        }
+    // Admin-Config
+    $admin = $db->getConfig('admin', null);
+    
+    if (!$admin) {
+        return [];
     }
     
-    return $config;
-}
-
-// Config-Wert setzen
-function set_config($key, $value) {
-    $db = get_db();
-    $stmt = $db->prepare("INSERT INTO config (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)");
-    $stmt->execute([$key, $value]);
+    return array(
+        'admin' => $admin,
+        'api_key' => $db->getConfig('api_key', ''),
+        'timezone' => $db->getConfig('timezone', 'Europe/Berlin'),
+        'currency' => $db->getConfig('currency', '€'),
+    );
 }
 
 // API Key abrufen
 function get_api_key() {
-    $config = get_config();
-    return $config['api_key'] ?? '';
+    $db = LicenseDB::getInstance();
+    return $db->getConfig('api_key', '');
 }
 
 // Timezone setzen
-$config = get_config();
-date_default_timezone_set($config['timezone'] ?? 'Europe/Berlin');
+$db = LicenseDB::getInstance();
+$timezone = $db->getConfig('timezone', 'Europe/Berlin');
+date_default_timezone_set($timezone);
