@@ -1,7 +1,7 @@
 <?php
 /**
  * WP Restaurant Menu - License Management
- * Automatische Registrierung beim License-Server!
+ * Alle Lizenzen werden über den License-Server verwaltet!
  */
 
 if (!defined('ABSPATH')) {
@@ -10,44 +10,8 @@ if (!defined('ABSPATH')) {
 
 class WPR_License {
     
-    // 10 Master Keys - funktionieren IMMER ohne Server
-    private static $master_keys = array(
-        'WPR-MASTER-2025-KEY1-ALPHA',
-        'WPR-MASTER-2025-KEY2-BETA',
-        'WPR-MASTER-2025-KEY3-GAMMA',
-        'WPR-MASTER-2025-KEY4-DELTA',
-        'WPR-MASTER-2025-KEY5-EPSILON',
-        'WPR-MASTER-2025-KEY6-ZETA',
-        'WPR-MASTER-2025-KEY7-ETA',
-        'WPR-MASTER-2025-KEY8-THETA',
-        'WPR-MASTER-2025-KEY9-IOTA',
-        'WPR-MASTER-2025-KEY10-KAPPA',
-    );
-    
-    // PRO+ Master Keys (mit Dark Mode)
-    private static $master_keys_pro_plus = array(
-        'WPR-PROPLUS-2025-KEY1-OMEGA',
-        'WPR-PROPLUS-2025-KEY2-SIGMA',
-        'WPR-PROPLUS-2025-KEY3-PHI',
-    );
-    
-    // FREE+ Master Keys (neues Modell - Server verwaltet Details)
-    private static $master_keys_free_plus = array(
-        'WPR-FREEPLUS-2025-KEY1-ALPHA',
-        'WPR-FREEPLUS-2025-KEY2-BETA',
-        'WPR-FREEPLUS-2025-KEY3-GAMMA',
-    );
-    
-    // ULTIMATE Master Keys (neues Modell - Server verwaltet Details)
-    private static $master_keys_ultimate = array(
-        'WPR-ULTIMATE-2025-KEY1-PSILONALPHA',
-        'WPR-ULTIMATE-2025-KEY2-ARCHIALPHA',
-        'WPR-ULTIMATE-2025-KEY3-TAUONOALPHA',
-    );
-    
-    // FESTE Server-URL (hier eintragen!)
+    // Server-URL
     private static function get_server_url() {
-        // WICHTIG: /license-server/ nicht vergessen!
         return 'https://license-server.stb-srv.de/license-server/api.php';
     }
     
@@ -79,26 +43,6 @@ class WPR_License {
             'label' => 'ULTIMATE',
         ),
     );
-    
-    // Prüfe ob Master Key
-    private static function is_master_key($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys);
-    }
-    
-    // Prüfe ob PRO+ Master Key
-    private static function is_master_key_pro_plus($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys_pro_plus);
-    }
-    
-    // Prüfe ob FREE+ Master Key
-    private static function is_master_key_free_plus($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys_free_plus);
-    }
-    
-    // Prüfe ob ULTIMATE Master Key
-    private static function is_master_key_ultimate($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys_ultimate);
-    }
     
     // Preise vom Server holen (mit Caching)
     public static function get_pricing() {
@@ -134,58 +78,17 @@ class WPR_License {
             return self::$fallback_pricing;
         }
         
-        set_transient('wpr_pricing_data', $data['pricing'], 86400);
+        // Stelle sicher, dass alle 5 Pakete vorhanden sind
+        $pricing = array_merge(self::$fallback_pricing, $data['pricing']);
         
-        return $data['pricing'];
+        set_transient('wpr_pricing_data', $pricing, 86400);
+        
+        return $pricing;
     }
     
     // Lizenz-Info abrufen (lokal gecacht)
     public static function get_license_info() {
         $key = get_option('wpr_license_key', '');
-        
-        // ULTIMATE Master Key? -> Daten vom Server oder Fallback
-        if (self::is_master_key_ultimate($key)) {
-            return array(
-                'valid' => true,
-                'type' => 'ultimate',
-                'max_items' => 900,
-                'expires' => '2099-12-31',
-                'features' => array('dark_mode'),
-            );
-        }
-        
-        // FREE+ Master Key? -> Daten vom Server oder Fallback
-        if (self::is_master_key_free_plus($key)) {
-            return array(
-                'valid' => true,
-                'type' => 'free_plus',
-                'max_items' => 60,
-                'expires' => '2099-12-31',
-                'features' => array(),
-            );
-        }
-        
-        // PRO+ Master Key? -> 200 Items + Dark Mode
-        if (self::is_master_key_pro_plus($key)) {
-            return array(
-                'valid' => true,
-                'type' => 'pro_plus',
-                'max_items' => 200,
-                'expires' => '2099-12-31',
-                'features' => array('dark_mode'),
-            );
-        }
-        
-        // Standard Master Key? -> 200 Items
-        if (self::is_master_key($key)) {
-            return array(
-                'valid' => true,
-                'type' => 'pro',
-                'max_items' => 200,
-                'expires' => '2099-12-31',
-                'features' => array(),
-            );
-        }
         
         // Gecachte Lizenz-Daten
         $cached = get_option('wpr_license_data');
@@ -220,7 +123,7 @@ class WPR_License {
     // Prüfe ob Dark Mode verfügbar
     public static function has_dark_mode() {
         $license = self::get_license_info();
-        return in_array('dark_mode', $license['features']);
+        return isset($license['features']) && in_array('dark_mode', $license['features']);
     }
     
     // Remote Server-Check
@@ -262,58 +165,6 @@ class WPR_License {
             return array(
                 'success' => false,
                 'message' => 'Bitte geben Sie einen Lizenzschlüssel ein.',
-            );
-        }
-        
-        // ULTIMATE Master Key?
-        if (self::is_master_key_ultimate($key)) {
-            update_option('wpr_license_key', $key);
-            delete_option('wpr_license_data');
-            delete_option('wpr_license_last_check');
-            
-            return array(
-                'success' => true,
-                'message' => '🎉 ULTIMATE Master-Lizenz aktiviert! 900 Gerichte + alle Features freigeschaltet.',
-                'data' => self::get_license_info(),
-            );
-        }
-        
-        // FREE+ Master Key?
-        if (self::is_master_key_free_plus($key)) {
-            update_option('wpr_license_key', $key);
-            delete_option('wpr_license_data');
-            delete_option('wpr_license_last_check');
-            
-            return array(
-                'success' => true,
-                'message' => '🎉 FREE+ Master-Lizenz aktiviert! 60 Gerichte freigeschaltet.',
-                'data' => self::get_license_info(),
-            );
-        }
-        
-        // PRO+ Master Key?
-        if (self::is_master_key_pro_plus($key)) {
-            update_option('wpr_license_key', $key);
-            delete_option('wpr_license_data');
-            delete_option('wpr_license_last_check');
-            
-            return array(
-                'success' => true,
-                'message' => '🎉 PRO+ Master-Lizenz aktiviert! 200 Gerichte + Dark Mode freigeschaltet.',
-                'data' => self::get_license_info(),
-            );
-        }
-        
-        // Standard Master Key?
-        if (self::is_master_key($key)) {
-            update_option('wpr_license_key', $key);
-            delete_option('wpr_license_data');
-            delete_option('wpr_license_last_check');
-            
-            return array(
-                'success' => true,
-                'message' => '🎉 PRO Master-Lizenz aktiviert! 200 Gerichte freigeschaltet.',
-                'data' => self::get_license_info(),
             );
         }
         
@@ -418,7 +269,7 @@ class WPR_License {
         $count = wp_count_posts('wpr_menu_item');
         $total_items = $count->publish + $count->draft + $count->pending;
         
-        $max_items = $license_info['max_items'];
+        $max_items = isset($license_info['max_items']) ? $license_info['max_items'] : 20;
         $is_over_limit = $total_items > $max_items;
         
         // Lizenz-Label für Anzeige
@@ -432,11 +283,11 @@ class WPR_License {
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <h2 style="margin-top: 0;">📊 Aktueller Status</h2>
                 
-                <?php if ($license_info['valid']) : ?>
+                <?php if (isset($license_info['valid']) && $license_info['valid']) : ?>
                     <?php if ($is_over_limit) : ?>
                         <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
                             <h3 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Lizenz-Limit überschritten!</h3>
-                            <p style="margin: 5px 0;"><strong>Überschrift:</strong> <?php echo esc_html($license_label); ?> Lizenz</p>
+                            <p style="margin: 5px 0;"><strong>Lizenz:</strong> <?php echo esc_html($license_label); ?></p>
                             <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['type'])); ?></p>
                             <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></span> (Überschreitung: <?php echo esc_html($total_items - $max_items); ?>)</p>
                             <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31' && strtotime($license_info['expires']) !== false) : ?>
@@ -500,7 +351,6 @@ class WPR_License {
                     </div>
                     
                     <!-- FREE+ -->
-                    <?php if (isset($pricing['free_plus'])) : ?>
                     <div style="padding: 15px; border: 2px solid #6ee7b7; border-radius: 8px; background: #ecfdf5;">
                         <h3 style="margin: 0 0 8px 0; font-size: 1em; color: #065f46;"><?php echo esc_html($pricing['free_plus']['label']); ?></h3>
                         <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #065f46;">
@@ -512,7 +362,6 @@ class WPR_License {
                             <li style="margin: 6px 0;">❌ Kein Dark Mode</li>
                         </ul>
                     </div>
-                    <?php endif; ?>
                     
                     <!-- PRO -->
                     <div style="padding: 15px; border: 2px solid #d97706; border-radius: 8px; background: #fef3c7;">
@@ -541,7 +390,6 @@ class WPR_License {
                     </div>
                     
                     <!-- ULTIMATE -->
-                    <?php if (isset($pricing['ultimate'])) : ?>
                     <div style="padding: 15px; border: 2px solid #0284c7; border-radius: 8px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
                         <h3 style="margin: 0 0 8px 0; font-size: 1em; color: #1e40af;">👑 <?php echo esc_html($pricing['ultimate']['label']); ?></h3>
                         <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #1e40af;">
@@ -553,7 +401,6 @@ class WPR_License {
                             <li style="margin: 6px 0; color: #0284c7; font-weight: bold;">🌙 Dark Mode</li>
                         </ul>
                     </div>
-                    <?php endif; ?>
                 </div>
             </div>
             
@@ -577,7 +424,7 @@ class WPR_License {
                                     placeholder="WPR-XXXXX-XXXXX-XXXXX"
                                 />
                                 <p class="description">
-                                    Geben Sie Ihren Lizenzschlüssel ein. Die Details (Preise, Features) für Premium-Lizenzen werden vom Lizenz-Server verwaltet.
+                                    Geben Sie Ihren Lizenzschlüssel ein. Alle Lizenzen werden über den Lizenz-Server verwaltet.
                                 </p>
                             </td>
                         </tr>
