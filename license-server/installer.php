@@ -1,9 +1,15 @@
 <?php
 /**
- * License Server - One-Click Installer mit Datenbank-Setup
+ * License Server - One-Click Installer
+ * Version 2.1 - Fixed Error Handling
  */
 
 define('LICENSE_SERVER', true);
+
+// Fehler-Reporting aktivieren (nur während Installation)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
 
 // Prüfe ob bereits installiert
 if (file_exists(__DIR__ . '/.installed')) {
@@ -14,6 +20,7 @@ if (file_exists(__DIR__ . '/.installed')) {
 $errors = [];
 $success_step1 = false;
 $current_step = 1;
+$debug_info = [];
 
 // POST-Verarbeitung
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
@@ -40,41 +47,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
         }
         
         if (empty($errors)) {
-            // DB-Config Datei erstellen
-            $config_content = "<?php\n";
-            $config_content .= "if (!defined('LICENSE_SERVER')) {\n";
-            $config_content .= "    die('Direct access not allowed');\n";
-            $config_content .= "}\n\n";
-            $config_content .= "define('DB_HOST', '" . addslashes($db_host) . "');\n";
-            $config_content .= "define('DB_NAME', '" . addslashes($db_name) . "');\n";
-            $config_content .= "define('DB_USER', '" . addslashes($db_user) . "');\n";
-            $config_content .= "define('DB_PASS', '" . addslashes($db_pass) . "');\n";
-            
-            if (!file_put_contents(__DIR__ . '/db-config.php', $config_content)) {
-                $errors[] = 'Konnte db-config.php nicht erstellen. Prüfe Schreibrechte!';
-            } else {
-                // Verbindung testen
-                try {
-                    require_once __DIR__ . '/includes/database.php';
-                    $db = LicenseDB::getInstance();
+            // DB-Verbindung direkt testen (ohne database.php)
+            try {
+                $test_conn = new PDO(
+                    "mysql:host={$db_host};dbname={$db_name};charset=utf8mb4",
+                    $db_user,
+                    $db_pass,
+                    [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    ]
+                );
+                
+                $debug_info[] = 'Verbindung erfolgreich';
+                
+                // Tabellen erstellen
+                $sql_queries = [
+                    // Config Tabelle
+                    "CREATE TABLE IF NOT EXISTS `config` (
+                        `key` VARCHAR(255) PRIMARY KEY,
+                        `value` TEXT NOT NULL,
+                        `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
                     
-                    if ($db->getConnection()) {
-                        // Tabellen erstellen
-                        if ($db->createTables()) {
-                            $success_step1 = true;
-                            $current_step = 2;
-                        } else {
-                            $errors[] = 'Konnte Tabellen nicht erstellen. Prüfe Datenbank-Rechte!';
-                            @unlink(__DIR__ . '/db-config.php');
-                        }
-                    } else {
-                        $errors[] = 'Verbindung zur Datenbank fehlgeschlagen!';
-                        @unlink(__DIR__ . '/db-config.php');
-                    }
-                } catch (Exception $e) {
-                    $errors[] = 'Datenbankfehler: ' . $e->getMessage();
-                    @unlink(__DIR__ . '/db-config.php');
+                    // Licenses Tabelle
+                    "CREATE TABLE IF NOT EXISTS `licenses` (
+                        `key` VARCHAR(255) PRIMARY KEY,
+                        `type` VARCHAR(50) NOT NULL,
+                        `domain` VARCHAR(255) DEFAULT NULL,
+                        `max_items` INT DEFAULT 20,
+                        `expires` VARCHAR(50) DEFAULT 'lifetime',
+                        `features` TEXT DEFAULT NULL,
+                        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX `idx_domain` (`domain`),
+                        INDEX `idx_type` (`type`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                    
+                    // Logs Tabelle
+                    "CREATE TABLE IF NOT EXISTS `logs` (
+                        `id` INT AUTO_INCREMENT PRIMARY KEY,
+                        `type` VARCHAR(50) DEFAULT 'info',
+                        `message` TEXT NOT NULL,
+                        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX `idx_type` (`type`),
+                        INDEX `idx_created` (`created_at`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                ];
+                
+                foreach ($sql_queries as $sql) {
+                    $test_conn->exec($sql);
                 }
+                
+                $debug_info[] = 'Tabellen erstellt';
+                
+                // Config-Datei erstellen
+                $config_content = "<?php\n";
+                $config_content .= "if (!defined('LICENSE_SERVER')) {\n";
+                $config_content .= "    die('Direct access not allowed');\n";
+                $config_content .= "}\n\n";
+                $config_content .= "define('DB_HOST', '" . addslashes($db_host) . "');\n";
+                $config_content .= "define('DB_NAME', '" . addslashes($db_name) . "');\n";
+                $config_content .= "define('DB_USER', '" . addslashes($db_user) . "');\n";
+                $config_content .= "define('DB_PASS', '" . addslashes($db_pass) . "');\n";
+                
+                if (file_put_contents(__DIR__ . '/db-config.php', $config_content)) {
+                    $debug_info[] = 'Config-Datei erstellt';
+                    $success_step1 = true;
+                    $current_step = 2;
+                } else {
+                    $errors[] = 'Konnte db-config.php nicht erstellen. Prüfe Schreibrechte!';
+                }
+                
+            } catch (PDOException $e) {
+                $errors[] = 'Datenbankfehler: ' . $e->getMessage();
+                $debug_info[] = 'PDO Error: ' . $e->getMessage();
+            } catch (Exception $e) {
+                $errors[] = 'Fehler: ' . $e->getMessage();
+                $debug_info[] = 'Exception: ' . $e->getMessage();
             }
         }
         
@@ -99,8 +149,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
         
         if (empty($errors)) {
             try {
-                require_once __DIR__ . '/includes/database.php';
-                $db = LicenseDB::getInstance();
+                // db-config.php muss existieren
+                if (!file_exists(__DIR__ . '/db-config.php')) {
+                    throw new Exception('db-config.php nicht gefunden. Bitte starte neu.');
+                }
+                
+                require_once __DIR__ . '/db-config.php';
+                
+                // Direkte PDO-Verbindung
+                $pdo = new PDO(
+                    "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+                    DB_USER,
+                    DB_PASS,
+                    [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    ]
+                );
                 
                 // Admin-Config in DB speichern
                 $admin_config = array(
@@ -109,23 +174,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
                     'email' => $admin_email,
                 );
                 
-                $db->setConfig('admin', $admin_config);
+                $stmt = $pdo->prepare("INSERT INTO config (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?");
+                $admin_json = json_encode($admin_config);
+                $stmt->execute(['admin', $admin_json, $admin_json]);
                 
-                // API Key generieren
+                // API Key
                 $api_key = bin2hex(random_bytes(32));
-                $db->setConfig('api_key', $api_key);
+                $stmt->execute(['api_key', $api_key, $api_key]);
                 
-                // Weitere Einstellungen
-                $db->setConfig('timezone', 'Europe/Berlin');
-                $db->setConfig('currency', '€');
+                // Einstellungen
+                $stmt->execute(['timezone', 'Europe/Berlin', 'Europe/Berlin']);
+                $stmt->execute(['currency', '€', '€']);
                 
-                // Standard-Preise in DB
-                $pricing = [
+                // Standard-Preise
+                $pricing = json_encode([
                     'free' => ['price' => 0, 'currency' => '€', 'label' => 'FREE'],
                     'pro' => ['price' => 29, 'currency' => '€', 'label' => 'PRO'],
                     'pro_plus' => ['price' => 49, 'currency' => '€', 'label' => 'PRO+'],
-                ];
-                $db->savePricing($pricing);
+                ]);
+                $stmt->execute(['pricing', $pricing, $pricing]);
                 
                 // Installation abgeschlossen
                 file_put_contents(__DIR__ . '/.installed', date('Y-m-d H:i:s'));
@@ -133,8 +200,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
                 // Weiterleitung
                 header('Location: index.php');
                 exit;
+                
+            } catch (PDOException $e) {
+                $errors[] = 'Datenbankfehler: ' . $e->getMessage();
+                $debug_info[] = 'PDO Error in Step 2: ' . $e->getMessage();
             } catch (Exception $e) {
                 $errors[] = 'Fehler beim Speichern: ' . $e->getMessage();
+                $debug_info[] = 'Exception in Step 2: ' . $e->getMessage();
             }
         }
         
@@ -143,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['install'])) {
     }
 }
 
-// Wenn Schritt 1 erfolgreich war, zeige Schritt 2
+// Wenn Schritt 1 erfolgreich -> zeige Schritt 2
 if ($success_step1) {
     $current_step = 2;
 }
@@ -280,7 +352,17 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
             font-size: 14px;
             line-height: 1.5;
         }
-        .info strong { color: #075985; }
+        .debug {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-size: 12px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
         .hint {
             font-size: 12px;
             color: #6b7280;
@@ -299,7 +381,7 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
             <div class="step <?php echo $current_step === 2 ? 'active' : ''; ?>">2</div>
         </div>
         
-        <!-- Fehler anzeigen -->
+        <!-- Fehler -->
         <?php if (!empty($errors)) : ?>
             <div class="error">
                 <?php foreach ($errors as $error) : ?>
@@ -308,7 +390,7 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
             </div>
         <?php endif; ?>
         
-        <!-- Erfolg Schritt 1 -->
+        <!-- Erfolg -->
         <?php if ($success_step1) : ?>
             <div class="success">
                 ✅ Datenbank erfolgreich verbunden! Tabellen wurden erstellt.
@@ -316,12 +398,10 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
         <?php endif; ?>
         
         <?php if ($current_step === 1) : ?>
-            <!-- ============================================ -->
-            <!-- SCHRITT 1: DATENBANK -->
-            <!-- ============================================ -->
+            <!-- SCHRITT 1 -->
             <div class="info">
                 <strong>📦 Schritt 1: Datenbank-Verbindung</strong><br>
-                Erstelle zuerst eine MySQL-Datenbank in deinem Hosting-Panel (cPanel, Plesk, etc.).<br>
+                Erstelle zuerst eine MySQL-Datenbank in deinem Hosting-Panel.<br>
                 Die Tabellen werden automatisch erstellt!
             </div>
             
@@ -337,7 +417,7 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
                         placeholder="localhost" 
                         value="<?php echo htmlspecialchars($_POST['db_host'] ?? 'localhost'); ?>"
                     >
-                    <div class="hint">Meist "localhost". Bei InfinityFree: "sql123.infinityfree.com"</div>
+                    <div class="hint">Meist "localhost"</div>
                 </div>
                 
                 <div class="form-group">
@@ -349,7 +429,6 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
                         placeholder="license_server" 
                         value="<?php echo htmlspecialchars($_POST['db_name'] ?? ''); ?>"
                     >
-                    <div class="hint">Der Name deiner MySQL-Datenbank</div>
                 </div>
                 
                 <div class="form-group">
@@ -361,7 +440,6 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
                         placeholder="root" 
                         value="<?php echo htmlspecialchars($_POST['db_user'] ?? ''); ?>"
                     >
-                    <div class="hint">MySQL-User (nicht dein Admin-Name!)</div>
                 </div>
                 
                 <div class="form-group">
@@ -369,29 +447,25 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
                     <input 
                         type="password" 
                         name="db_pass" 
-                        placeholder="(optional für localhost)"
+                        placeholder="(optional)"
                     >
-                    <div class="hint">MySQL-Passwort (kann bei localhost leer sein)</div>
                 </div>
                 
                 <button type="submit" name="install">➡️ Verbindung testen & weiter</button>
             </form>
             
         <?php else : ?>
-            <!-- ============================================ -->
-            <!-- SCHRITT 2: ADMIN ACCOUNT -->
-            <!-- ============================================ -->
+            <!-- SCHRITT 2 -->
             <div class="info">
                 <strong>👤 Schritt 2: Admin-Account erstellen</strong><br>
-                Jetzt erstellst du deinen Login für das License-Server Dashboard.<br>
-                <strong>Wichtig:</strong> Dies ist NICHT die Datenbank-Login!
+                Erstelle jetzt deinen Login fürs Dashboard.
             </div>
             
             <form method="post">
                 <input type="hidden" name="step" value="2">
                 
                 <div class="form-group">
-                    <label>👤 Admin-Benutzername (fürs Dashboard)</label>
+                    <label>👤 Admin-Benutzername</label>
                     <input 
                         type="text" 
                         name="admin_username" 
@@ -400,11 +474,10 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
                         placeholder="admin" 
                         value="<?php echo htmlspecialchars($_POST['admin_username'] ?? ''); ?>"
                     >
-                    <div class="hint">Mindestens 3 Zeichen</div>
                 </div>
                 
                 <div class="form-group">
-                    <label>🔒 Admin-Passwort (fürs Dashboard)</label>
+                    <label>🔒 Admin-Passwort</label>
                     <input 
                         type="password" 
                         name="admin_password" 
@@ -412,23 +485,31 @@ if (file_exists(__DIR__ . '/db-config.php') && !file_exists(__DIR__ . '/.install
                         minlength="8" 
                         placeholder="Mindestens 8 Zeichen"
                     >
-                    <div class="hint">Mindestens 8 Zeichen - Wähle ein sicheres Passwort!</div>
                 </div>
                 
                 <div class="form-group">
-                    <label>✉️ E-Mail-Adresse</label>
+                    <label>✉️ E-Mail</label>
                     <input 
                         type="email" 
                         name="admin_email" 
                         required 
-                        placeholder="admin@deine-domain.com" 
+                        placeholder="admin@domain.com" 
                         value="<?php echo htmlspecialchars($_POST['admin_email'] ?? ''); ?>"
                     >
-                    <div class="hint">Für Passwort-Wiederherstellung</div>
                 </div>
                 
                 <button type="submit" name="install">✨ Installation abschließen</button>
             </form>
+        <?php endif; ?>
+        
+        <!-- Debug Info -->
+        <?php if (!empty($debug_info)) : ?>
+            <div class="debug">
+                <strong>Debug Info:</strong><br>
+                <?php foreach ($debug_info as $info) : ?>
+                    - <?php echo htmlspecialchars($info); ?><br>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
     </div>
 </body>
