@@ -148,6 +148,39 @@ function wpr_get_allergens() {
     );
 }
 
+/**
+ * Globale Dark Mode Assets laden - nicht mehr nur im Shortcode
+ */
+function wpr_enqueue_global_styles() {
+    $settings = get_option('wpr_settings');
+    $dark_mode_enabled = isset($settings['dark_mode_enabled']) && $settings['dark_mode_enabled'] === 'yes';
+    
+    // Dark Mode global laden wenn aktiviert und Lizenz vorhanden
+    if ($dark_mode_enabled && WPR_License::has_dark_mode()) {
+        wp_enqueue_style(
+            'wpr-dark-mode',
+            WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/dark-mode.css',
+            array(),
+            WP_RESTAURANT_MENU_VERSION
+        );
+        
+        wp_enqueue_script(
+            'wpr-dark-mode',
+            WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/dark-mode.js',
+            array(),
+            WP_RESTAURANT_MENU_VERSION,
+            true
+        );
+        
+        wp_localize_script('wpr-dark-mode', 'wprDarkMode', array(
+            'enabled' => true,
+            'method' => isset($settings['dark_mode_method']) ? $settings['dark_mode_method'] : 'manual',
+            'position' => isset($settings['dark_mode_position']) ? $settings['dark_mode_position'] : 'bottom-right',
+        ));
+    }
+}
+add_action('wp_enqueue_scripts', 'wpr_enqueue_global_styles');
+
 function wpr_enqueue_styles() {
     if (is_singular() || is_page()) {
         wp_enqueue_style(
@@ -172,33 +205,6 @@ function wpr_enqueue_styles() {
             WP_RESTAURANT_MENU_VERSION,
             true
         );
-        
-        // Dark Mode (nur wenn aktiviert und Lizenz vorhanden)
-        $settings = get_option('wpr_settings');
-        $dark_mode_enabled = isset($settings['dark_mode_enabled']) && $settings['dark_mode_enabled'] === 'yes';
-        
-        if ($dark_mode_enabled && WPR_License::has_dark_mode()) {
-            wp_enqueue_style(
-                'wpr-dark-mode',
-                WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/dark-mode.css',
-                array('wpr-menu-styles'),
-                WP_RESTAURANT_MENU_VERSION
-            );
-            
-            wp_enqueue_script(
-                'wpr-dark-mode',
-                WP_RESTAURANT_MENU_PLUGIN_URL . 'assets/dark-mode.js',
-                array(),
-                WP_RESTAURANT_MENU_VERSION,
-                true
-            );
-            
-            wp_localize_script('wpr-dark-mode', 'wprDarkMode', array(
-                'enabled' => true,
-                'method' => isset($settings['dark_mode_method']) ? $settings['dark_mode_method'] : 'manual',
-                'position' => isset($settings['dark_mode_position']) ? $settings['dark_mode_position'] : 'bottom-right',
-            ));
-        }
     }
 }
 add_action('wp_enqueue_scripts', 'wpr_enqueue_styles');
@@ -363,13 +369,18 @@ function wpr_render_settings_page() {
                 
                 <!-- Dark Mode Einstellungen -->
                 <h2 style="display: flex; align-items: center; gap: 10px;">
-                    🌙 Dark Mode
+                    🌙 Dark Mode (GLOBAL)
                     <?php if ($has_dark_mode) : ?>
                         <span style="background: #1f2937; color: #fbbf24; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; font-weight: normal;">PRO+</span>
                     <?php else : ?>
                         <span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 4px; font-size: 0.8em; font-weight: normal;">🔒 Lizenz erforderlich</span>
                     <?php endif; ?>
                 </h2>
+                
+                <div style="padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; margin-bottom: 20px;">
+                    <p style="margin: 0; color: #1565c0;"><strong>ℹ️ Global verfügbar</strong></p>
+                    <p style="margin: 10px 0 0 0; color: #1565c0;">Der Dark Mode wird jetzt auf der gesamten WordPress-Seite angewendet, nicht nur beim Menü-Shortcode!</p>
+                </div>
                 
                 <?php if (!$has_dark_mode) : ?>
                     <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
