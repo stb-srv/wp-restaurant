@@ -119,6 +119,11 @@ if (isset($_POST['save_pricing'])) {
             'currency' => sanitize_text($_POST['free_currency']),
             'label' => sanitize_text($_POST['free_label']),
         ),
+        'free_plus' => array(
+            'price' => intval($_POST['free_plus_price']),
+            'currency' => sanitize_text($_POST['free_plus_currency']),
+            'label' => sanitize_text($_POST['free_plus_label']),
+        ),
         'pro' => array(
             'price' => intval($_POST['pro_price']),
             'currency' => sanitize_text($_POST['pro_currency']),
@@ -128,6 +133,11 @@ if (isset($_POST['save_pricing'])) {
             'price' => intval($_POST['pro_plus_price']),
             'currency' => sanitize_text($_POST['pro_plus_currency']),
             'label' => sanitize_text($_POST['pro_plus_label']),
+        ),
+        'ultimate' => array(
+            'price' => intval($_POST['ultimate_price']),
+            'currency' => sanitize_text($_POST['ultimate_currency']),
+            'label' => sanitize_text($_POST['ultimate_label']),
         ),
     );
     
@@ -142,8 +152,10 @@ if (file_exists($DATA_FILE)) {
     // Standardwerte
     $pricing = array(
         'free' => array('price' => 0, 'currency' => '€', 'label' => 'FREE'),
+        'free_plus' => array('price' => 15, 'currency' => '€', 'label' => 'FREE+'),
         'pro' => array('price' => 29, 'currency' => '€', 'label' => 'PRO'),
         'pro_plus' => array('price' => 49, 'currency' => '€', 'label' => 'PRO+'),
+        'ultimate' => array('price' => 79, 'currency' => '€', 'label' => 'ULTIMATE'),
     );
 }
 
@@ -169,7 +181,7 @@ function sanitize_text($text) {
             padding: 20px;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         .header {
@@ -211,35 +223,44 @@ function sanitize_text($text) {
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
             margin-bottom: 30px;
         }
         .package {
             padding: 20px;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
+            background: #fafafa;
+        }
+        .package.new {
+            border-color: #10b981;
+            background: #f0fdf4;
         }
         .package h3 {
             margin-bottom: 15px;
             color: #374151;
+            font-size: 16px;
+        }
+        .package.new h3 {
+            color: #047857;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             color: #374151;
             font-weight: 500;
-            font-size: 14px;
+            font-size: 13px;
         }
         input {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border: 2px solid #e5e7eb;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
         }
         input:focus {
             outline: none;
@@ -285,6 +306,16 @@ function sanitize_text($text) {
             font-family: monospace;
             font-size: 13px;
         }
+        .badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -320,6 +351,23 @@ function sanitize_text($text) {
                         </div>
                     </div>
                     
+                    <!-- FREE+ (NEW) -->
+                    <div class="package new">
+                        <h3>FREE+ Paket <span class="badge">NEU</span></h3>
+                        <div class="form-group">
+                            <label>Label</label>
+                            <input type="text" name="free_plus_label" value="<?php echo htmlspecialchars($pricing['free_plus']['label']); ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Preis</label>
+                            <input type="number" name="free_plus_price" value="<?php echo htmlspecialchars($pricing['free_plus']['price']); ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Währung</label>
+                            <input type="text" name="free_plus_currency" value="<?php echo htmlspecialchars($pricing['free_plus']['currency']); ?>" required maxlength="3">
+                        </div>
+                    </div>
+                    
                     <!-- PRO -->
                     <div class="package">
                         <h3>PRO Paket</h3>
@@ -351,6 +399,23 @@ function sanitize_text($text) {
                         <div class="form-group">
                             <label>Währung</label>
                             <input type="text" name="pro_plus_currency" value="<?php echo htmlspecialchars($pricing['pro_plus']['currency']); ?>" required maxlength="3">
+                        </div>
+                    </div>
+                    
+                    <!-- ULTIMATE (NEW) -->
+                    <div class="package new">
+                        <h3>ULTIMATE Paket <span class="badge">NEU</span></h3>
+                        <div class="form-group">
+                            <label>Label</label>
+                            <input type="text" name="ultimate_label" value="<?php echo htmlspecialchars($pricing['ultimate']['label']); ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Preis</label>
+                            <input type="number" name="ultimate_price" value="<?php echo htmlspecialchars($pricing['ultimate']['price']); ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Währung</label>
+                            <input type="text" name="ultimate_currency" value="<?php echo htmlspecialchars($pricing['ultimate']['currency']); ?>" required maxlength="3">
                         </div>
                     </div>
                 </div>
