@@ -133,6 +133,24 @@ class WPR_License {
     }
     
     /**
+     * Helper: Lizenz-Label für Anzeige formatieren
+     */
+    private static function format_license_label($type) {
+        $labels = array(
+            'free' => 'FREE',
+            'pro' => 'PRO',
+            'pro_plus' => 'PRO+',
+        );
+        
+        if (isset($labels[$type])) {
+            return $labels[$type];
+        }
+        
+        // Fallback: Underscores durch + ersetzen und uppercase
+        return strtoupper(str_replace('_', '+', $type));
+    }
+    
+    /**
      * Remote Server-Check
      */
     private static function check_license_remote($key) {
@@ -206,11 +224,38 @@ class WPR_License {
             update_option('wpr_license_data', $info);
             update_option('wpr_license_last_check', time());
             
-            $type_label = strtoupper(str_replace('_', '+', $info['type']));
+            // Lizenztyp bestimmen
+            $license_type = isset($info['type']) ? $info['type'] : 'unknown';
+            $type_label = self::format_license_label($license_type);
+            
+            // Max Items für Nachricht
+            $max_items = isset($info['max_items']) ? $info['max_items'] : 0;
+            
+            // Features für spezielle Nachricht
+            $has_dark_mode = isset($info['features']) && in_array('dark_mode', $info['features']);
+            
+            // Erfolgs-Nachricht je nach Lizenztyp
+            $message = "✅ {$type_label} Lizenz erfolgreich aktiviert!";
+            
+            if ($license_type === 'free') {
+                $message .= " Bis zu {$max_items} Gerichte verfügbar.";
+            } elseif ($license_type === 'pro') {
+                $message .= " Bis zu {$max_items} Gerichte freigeschaltet.";
+            } elseif ($license_type === 'pro_plus') {
+                $message .= " Bis zu {$max_items} Gerichte";
+                if ($has_dark_mode) {
+                    $message .= " + 🌙 Dark Mode freigeschaltet.";
+                } else {
+                    $message .= " freigeschaltet.";
+                }
+            } else {
+                // Unbekannter Typ
+                $message .= " Bis zu {$max_items} Gerichte verfügbar.";
+            }
             
             return array(
                 'success' => true,
-                'message' => "✅ {$type_label} Lizenz erfolgreich aktiviert!",
+                'message' => $message,
                 'data' => $info,
             );
         } else {
@@ -296,7 +341,7 @@ class WPR_License {
                     <?php if ($is_over_limit) : ?>
                         <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
                             <h3 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Lizenz-Limit überschritten!</h3>
-                            <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper(str_replace('_', '+', $license_info['type']))); ?></p>
+                            <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(self::format_license_label($license_info['type'])); ?></p>
                             <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></span> (Überschreitung: <?php echo esc_html($total_items - $max_items); ?>)</p>
                             <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
                                 <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
@@ -304,7 +349,7 @@ class WPR_License {
                         </div>
                     <?php else : ?>
                         <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 20px;">
-                            <h3 style="margin: 0 0 10px 0; color: #047857;">✅ <?php echo esc_html(strtoupper(str_replace('_', '+', $license_info['type']))); ?> Lizenz aktiv</h3>
+                            <h3 style="margin: 0 0 10px 0; color: #047857;">✅ <?php echo esc_html(self::format_license_label($license_info['type'])); ?> Lizenz aktiv</h3>
                             <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
                             <?php if (self::has_dark_mode()) : ?>
                                 <p style="margin: 5px 0;"><strong>Features:</strong> <span style="background: #1f2937; color: #fbbf24; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">🌙 Dark Mode</span></p>
