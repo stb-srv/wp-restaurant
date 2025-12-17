@@ -1,5 +1,6 @@
 /**
- * WP Restaurant Menu - Full WordPress Dark Mode Toggle
+ * WP Restaurant Menu - Global WordPress Dark Mode
+ * Aktiviert Dark Mode für die gesamte Website (nicht nur Menü)
  */
 
 (function() {
@@ -12,6 +13,7 @@
     class DarkModeManager {
         constructor() {
             this.settings = window.wprDarkMode || {};
+            this.isGlobal = this.settings.global !== false; // Default: true (global)
             this.init();
         }
         
@@ -48,9 +50,15 @@
         }
         
         enableDarkMode(save = true) {
-            // Füge Klasse zu <body> hinzu (nicht nur .wpr-menu-wrapper)
-            document.body.classList.add(CLASS_NAME);
-            document.documentElement.classList.add(CLASS_NAME);
+            if (this.isGlobal) {
+                // Global: Gesamte WordPress-Seite
+                document.body.classList.add(CLASS_NAME);
+                document.documentElement.classList.add(CLASS_NAME);
+            } else {
+                // Lokal: Nur Menü-Wrapper
+                const wrappers = document.querySelectorAll('.wpr-menu-wrapper');
+                wrappers.forEach(wrapper => wrapper.classList.add(CLASS_NAME));
+            }
             
             if (save) {
                 localStorage.setItem(STORAGE_KEY, 'dark');
@@ -58,9 +66,15 @@
         }
         
         disableDarkMode(save = true) {
-            // Entferne Klasse von <body>
-            document.body.classList.remove(CLASS_NAME);
-            document.documentElement.classList.remove(CLASS_NAME);
+            if (this.isGlobal) {
+                // Global: Gesamte WordPress-Seite
+                document.body.classList.remove(CLASS_NAME);
+                document.documentElement.classList.remove(CLASS_NAME);
+            } else {
+                // Lokal: Nur Menü-Wrapper
+                const wrappers = document.querySelectorAll('.wpr-menu-wrapper');
+                wrappers.forEach(wrapper => wrapper.classList.remove(CLASS_NAME));
+            }
             
             if (save) {
                 localStorage.setItem(STORAGE_KEY, 'light');
@@ -68,7 +82,11 @@
         }
         
         toggleDarkMode() {
-            if (document.body.classList.contains(CLASS_NAME)) {
+            const isDark = this.isGlobal 
+                ? document.body.classList.contains(CLASS_NAME)
+                : document.querySelector('.wpr-menu-wrapper')?.classList.contains(CLASS_NAME);
+            
+            if (isDark) {
                 this.disableDarkMode();
             } else {
                 this.enableDarkMode();
