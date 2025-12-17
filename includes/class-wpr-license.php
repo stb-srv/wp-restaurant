@@ -58,6 +58,11 @@ class WPR_License {
             'currency' => '€',
             'label' => 'FREE',
         ),
+        'free_plus' => array(
+            'price' => 15,
+            'currency' => '€',
+            'label' => 'FREE+',
+        ),
         'pro' => array(
             'price' => 29,
             'currency' => '€',
@@ -67,6 +72,11 @@ class WPR_License {
             'price' => 49,
             'currency' => '€',
             'label' => 'PRO+',
+        ),
+        'ultimate' => array(
+            'price' => 79,
+            'currency' => '€',
+            'label' => 'ULTIMATE',
         ),
     );
     
@@ -138,7 +148,7 @@ class WPR_License {
             return array(
                 'valid' => true,
                 'type' => 'ultimate',
-                'max_items' => 999,
+                'max_items' => 900,
                 'expires' => '2099-12-31',
                 'features' => array('dark_mode'),
             );
@@ -263,7 +273,7 @@ class WPR_License {
             
             return array(
                 'success' => true,
-                'message' => '🎉 ULTIMATE Master-Lizenz aktiviert! Alle Features freigeschaltet.',
+                'message' => '🎉 ULTIMATE Master-Lizenz aktiviert! 900 Gerichte + alle Features freigeschaltet.',
                 'data' => self::get_license_info(),
             );
         }
@@ -358,6 +368,19 @@ class WPR_License {
         );
     }
     
+    // Helper: Lizenz-Label für Anzeige
+    private static function get_license_label($type) {
+        $labels = array(
+            'free' => 'FREE',
+            'free_plus' => 'FREE+',
+            'pro' => 'PRO',
+            'pro_plus' => 'PRO+',
+            'ultimate' => 'ULTIMATE',
+        );
+        
+        return isset($labels[$type]) ? $labels[$type] : strtoupper($type);
+    }
+    
     // Admin-Seite rendern
     public static function render_page() {
         // Lizenz aktivieren
@@ -398,6 +421,9 @@ class WPR_License {
         $max_items = $license_info['max_items'];
         $is_over_limit = $total_items > $max_items;
         
+        // Lizenz-Label für Anzeige
+        $license_label = self::get_license_label($license_info['type']);
+        
         ?>
         <div class="wrap">
             <h1>🔑 Lizenz-Verwaltung</h1>
@@ -410,28 +436,29 @@ class WPR_License {
                     <?php if ($is_over_limit) : ?>
                         <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
                             <h3 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Lizenz-Limit überschritten!</h3>
+                            <p style="margin: 5px 0;"><strong>Überschrift:</strong> <?php echo esc_html($license_label); ?> Lizenz</p>
                             <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['type'])); ?></p>
                             <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></span> (Überschreitung: <?php echo esc_html($total_items - $max_items); ?>)</p>
-                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
+                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31' && strtotime($license_info['expires']) !== false) : ?>
                                 <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
                             <?php endif; ?>
                         </div>
                     <?php else : ?>
                         <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 20px;">
-                            <h3 style="margin: 0 0 10px 0; color: #047857;">✅ <?php echo $license_info['type'] === 'pro_plus' ? 'PRO+ Lizenz' : 'PRO Lizenz'; ?> aktiv</h3>
+                            <h3 style="margin: 0 0 10px 0; color: #047857;">✅ <?php echo esc_html($license_label); ?> Lizenz aktiv</h3>
                             <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['type'])); ?></p>
                             <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
                             <?php if (self::has_dark_mode()) : ?>
                                 <p style="margin: 5px 0;"><strong>Features:</strong> <span style="background: #1f2937; color: #fbbf24; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">🌙 Dark Mode</span></p>
                             <?php endif; ?>
-                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
+                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31' && strtotime($license_info['expires']) !== false) : ?>
                                 <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 <?php else : ?>
                     <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ Free Version</h3>
+                        <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ FREE Version</h3>
                         <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
                     </div>
                 <?php endif; ?>
@@ -458,42 +485,75 @@ class WPR_License {
                     </form>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-                    <div style="padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                        <h3 style="margin: 0 0 10px 0;"><?php echo esc_html($pricing['free']['label']); ?></h3>
-                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0;">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px;">
+                    <!-- FREE -->
+                    <div style="padding: 15px; border: 2px solid #e5e7eb; border-radius: 8px; background: #fafafa;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 1em;"><?php echo esc_html($pricing['free']['label']); ?></h3>
+                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0;">
                             <?php echo esc_html($pricing['free']['price']); ?><?php echo esc_html($pricing['free']['currency']); ?>
                         </p>
-                        <ul style="list-style: none; padding: 0; margin: 15px 0;">
-                            <li style="margin: 8px 0;">✅ Bis zu 20 Gerichte</li>
-                            <li style="margin: 8px 0;">✅ Alle Basis-Features</li>
-                            <li style="margin: 8px 0;">❌ Kein Dark Mode</li>
+                        <ul style="list-style: none; padding: 0; margin: 10px 0; font-size: 0.85em;">
+                            <li style="margin: 6px 0;">✅ 20 Gerichte</li>
+                            <li style="margin: 6px 0;">✅ Basis-Features</li>
+                            <li style="margin: 6px 0;">❌ Kein Dark Mode</li>
                         </ul>
                     </div>
                     
-                    <div style="padding: 20px; border: 2px solid #d97706; border-radius: 8px; background: #fef3c7;">
-                        <h3 style="margin: 0 0 10px 0; color: #92400e;"><?php echo esc_html($pricing['pro']['label']); ?></h3>
-                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #92400e;">
+                    <!-- FREE+ -->
+                    <?php if (isset($pricing['free_plus'])) : ?>
+                    <div style="padding: 15px; border: 2px solid #6ee7b7; border-radius: 8px; background: #ecfdf5;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 1em; color: #065f46;"><?php echo esc_html($pricing['free_plus']['label']); ?></h3>
+                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #065f46;">
+                            <?php echo esc_html($pricing['free_plus']['price']); ?><?php echo esc_html($pricing['free_plus']['currency']); ?>
+                        </p>
+                        <ul style="list-style: none; padding: 0; margin: 10px 0; font-size: 0.85em;">
+                            <li style="margin: 6px 0;">✅ 60 Gerichte</li>
+                            <li style="margin: 6px 0;">✅ Alle Features</li>
+                            <li style="margin: 6px 0;">❌ Kein Dark Mode</li>
+                        </ul>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- PRO -->
+                    <div style="padding: 15px; border: 2px solid #d97706; border-radius: 8px; background: #fef3c7;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 1em; color: #92400e;"><?php echo esc_html($pricing['pro']['label']); ?></h3>
+                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #92400e;">
                             <?php echo esc_html($pricing['pro']['price']); ?><?php echo esc_html($pricing['pro']['currency']); ?>
                         </p>
-                        <ul style="list-style: none; padding: 0; margin: 15px 0;">
-                            <li style="margin: 8px 0;">✅ Bis zu 200 Gerichte (Standard)</li>
-                            <li style="margin: 8px 0;">✅ Individuell anpassbar</li>
-                            <li style="margin: 8px 0;">❌ Kein Dark Mode</li>
+                        <ul style="list-style: none; padding: 0; margin: 10px 0; font-size: 0.85em;">
+                            <li style="margin: 6px 0;">✅ 200 Gerichte</li>
+                            <li style="margin: 6px 0;">✅ Alle Features</li>
+                            <li style="margin: 6px 0;">❌ Kein Dark Mode</li>
                         </ul>
                     </div>
                     
-                    <div style="padding: 20px; border: 2px solid #1f2937; border-radius: 8px; background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: #fff;">
-                        <h3 style="margin: 0 0 10px 0; color: #fbbf24;"><?php echo esc_html($pricing['pro_plus']['label']); ?> 🌟</h3>
-                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #fbbf24;">
+                    <!-- PRO+ -->
+                    <div style="padding: 15px; border: 2px solid #6366f1; border-radius: 8px; background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);">
+                        <h3 style="margin: 0 0 8px 0; font-size: 1em; color: #312e81;"><?php echo esc_html($pricing['pro_plus']['label']); ?> 🌟</h3>
+                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #312e81;">
                             <?php echo esc_html($pricing['pro_plus']['price']); ?><?php echo esc_html($pricing['pro_plus']['currency']); ?>
                         </p>
-                        <ul style="list-style: none; padding: 0; margin: 15px 0;">
-                            <li style="margin: 8px 0;">✅ Bis zu 200 Gerichte (Standard)</li>
-                            <li style="margin: 8px 0;">✅ Individuell anpassbar</li>
-                            <li style="margin: 8px 0; color: #fbbf24; font-weight: bold;">🌙 Dark Mode</li>
+                        <ul style="list-style: none; padding: 0; margin: 10px 0; font-size: 0.85em;">
+                            <li style="margin: 6px 0;">✅ 200 Gerichte</li>
+                            <li style="margin: 6px 0;">✅ Alle Features</li>
+                            <li style="margin: 6px 0; color: #6366f1; font-weight: bold;">🌙 Dark Mode</li>
                         </ul>
                     </div>
+                    
+                    <!-- ULTIMATE -->
+                    <?php if (isset($pricing['ultimate'])) : ?>
+                    <div style="padding: 15px; border: 2px solid #0284c7; border-radius: 8px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+                        <h3 style="margin: 0 0 8px 0; font-size: 1em; color: #1e40af;">👑 <?php echo esc_html($pricing['ultimate']['label']); ?></h3>
+                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #1e40af;">
+                            <?php echo esc_html($pricing['ultimate']['price']); ?><?php echo esc_html($pricing['ultimate']['currency']); ?>
+                        </p>
+                        <ul style="list-style: none; padding: 0; margin: 10px 0; font-size: 0.85em;">
+                            <li style="margin: 6px 0;">✅ 900 Gerichte</li>
+                            <li style="margin: 6px 0;">✅ Alle Features</li>
+                            <li style="margin: 6px 0; color: #0284c7; font-weight: bold;">🌙 Dark Mode</li>
+                        </ul>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
             
