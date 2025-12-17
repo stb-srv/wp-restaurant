@@ -1,0 +1,27 @@
+{
+    "free": {
+        "price": 0,
+        "currency": "€",
+        "label": "FREE"
+    },
+    "free_plus": {
+        "price": 15,
+        "currency": "€",
+        "label": "FREE+"
+    },
+    "pro": {
+        "price": 29,
+        "currency": "€",
+        "label": "PRO"
+    },
+    "pro_plus": {
+        "price": 49,
+        "currency": "€",
+        "label": "PRO+"
+    },
+    "ultimate": {
+        "price": 79,
+        "currency": "€",
+        "label": "ULTIMATE"
+    }
+}
