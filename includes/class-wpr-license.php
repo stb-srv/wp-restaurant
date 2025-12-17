@@ -2,13 +2,6 @@
 /**
  * WP Restaurant Menu - License Management
  * Automatische Registrierung beim License-Server!
- * 
- * Neue Lizenzmodelle:
- * - Free: 20 Speisen, kostenlos
- * - Standard: 60 Speisen
- * - Pro: 200 Speisen
- * - Pro+: 200 Speisen + Dark Mode
- * - Ultimate: 900 Speisen + alle Features
  */
 
 if (!defined('ABSPATH')) {
@@ -17,35 +10,35 @@ if (!defined('ABSPATH')) {
 
 class WPR_License {
     
-    // 10 Master Keys für Free (Test/Demo)
-    private static $master_keys_free = array(
-        'WPR-FREE-2025-KEY1-ALPHA',
-        'WPR-FREE-2025-KEY2-BETA',
-        'WPR-FREE-2025-KEY3-GAMMA',
+    // 10 Master Keys - funktionieren IMMER ohne Server
+    private static $master_keys = array(
+        'WPR-MASTER-2025-KEY1-ALPHA',
+        'WPR-MASTER-2025-KEY2-BETA',
+        'WPR-MASTER-2025-KEY3-GAMMA',
+        'WPR-MASTER-2025-KEY4-DELTA',
+        'WPR-MASTER-2025-KEY5-EPSILON',
+        'WPR-MASTER-2025-KEY6-ZETA',
+        'WPR-MASTER-2025-KEY7-ETA',
+        'WPR-MASTER-2025-KEY8-THETA',
+        'WPR-MASTER-2025-KEY9-IOTA',
+        'WPR-MASTER-2025-KEY10-KAPPA',
     );
     
-    // 10 Master Keys für Standard (60 Items)
-    private static $master_keys_standard = array(
-        'WPR-STANDARD-2025-KEY1-ALPHA',
-        'WPR-STANDARD-2025-KEY2-BETA',
-        'WPR-STANDARD-2025-KEY3-GAMMA',
-    );
-    
-    // Master Keys für Pro (200 Items)
-    private static $master_keys_pro = array(
-        'WPR-PRO-2025-KEY1-DELTA',
-        'WPR-PRO-2025-KEY2-EPSILON',
-        'WPR-PRO-2025-KEY3-ZETA',
-    );
-    
-    // PRO+ Master Keys (200 Items + Dark Mode)
+    // PRO+ Master Keys (mit Dark Mode)
     private static $master_keys_pro_plus = array(
         'WPR-PROPLUS-2025-KEY1-OMEGA',
         'WPR-PROPLUS-2025-KEY2-SIGMA',
         'WPR-PROPLUS-2025-KEY3-PHI',
     );
     
-    // Ultimate Master Keys (900 Items + all Features)
+    // FREE+ Master Keys (neues Modell - Server verwaltet Details)
+    private static $master_keys_free_plus = array(
+        'WPR-FREEPLUS-2025-KEY1-ALPHA',
+        'WPR-FREEPLUS-2025-KEY2-BETA',
+        'WPR-FREEPLUS-2025-KEY3-GAMMA',
+    );
+    
+    // ULTIMATE Master Keys (neues Modell - Server verwaltet Details)
     private static $master_keys_ultimate = array(
         'WPR-ULTIMATE-2025-KEY1-PSILONALPHA',
         'WPR-ULTIMATE-2025-KEY2-ARCHIALPHA',
@@ -65,11 +58,6 @@ class WPR_License {
             'currency' => '€',
             'label' => 'FREE',
         ),
-        'standard' => array(
-            'price' => 19,
-            'currency' => '€',
-            'label' => 'STANDARD',
-        ),
         'pro' => array(
             'price' => 29,
             'currency' => '€',
@@ -80,26 +68,11 @@ class WPR_License {
             'currency' => '€',
             'label' => 'PRO+',
         ),
-        'ultimate' => array(
-            'price' => 79,
-            'currency' => '€',
-            'label' => 'ULTIMATE',
-        ),
     );
     
-    // Prüfe ob Free Master Key
-    private static function is_master_key_free($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys_free);
-    }
-    
-    // Prüfe ob Standard Master Key
-    private static function is_master_key_standard($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys_standard);
-    }
-    
-    // Prüfe ob Pro Master Key
-    private static function is_master_key_pro($key) {
-        return in_array(strtoupper(trim($key)), self::$master_keys_pro);
+    // Prüfe ob Master Key
+    private static function is_master_key($key) {
+        return in_array(strtoupper(trim($key)), self::$master_keys);
     }
     
     // Prüfe ob PRO+ Master Key
@@ -107,7 +80,12 @@ class WPR_License {
         return in_array(strtoupper(trim($key)), self::$master_keys_pro_plus);
     }
     
-    // Prüfe ob Ultimate Master Key
+    // Prüfe ob FREE+ Master Key
+    private static function is_master_key_free_plus($key) {
+        return in_array(strtoupper(trim($key)), self::$master_keys_free_plus);
+    }
+    
+    // Prüfe ob ULTIMATE Master Key
     private static function is_master_key_ultimate($key) {
         return in_array(strtoupper(trim($key)), self::$master_keys_ultimate);
     }
@@ -151,19 +129,29 @@ class WPR_License {
         return $data['pricing'];
     }
     
-    // Lizenz-Info abrufen (lokal gecached)
+    // Lizenz-Info abrufen (lokal gecacht)
     public static function get_license_info() {
         $key = get_option('wpr_license_key', '');
         
-        // Ultimate Master Key? -> 900 Items + Dark Mode + alle Features
+        // ULTIMATE Master Key? -> Daten vom Server oder Fallback
         if (self::is_master_key_ultimate($key)) {
             return array(
                 'valid' => true,
                 'type' => 'ultimate',
-                'display_name' => 'ULTIMATE',
-                'max_items' => 900,
+                'max_items' => 999,
                 'expires' => '2099-12-31',
-                'features' => array('dark_mode', 'unlimited_items'),
+                'features' => array('dark_mode'),
+            );
+        }
+        
+        // FREE+ Master Key? -> Daten vom Server oder Fallback
+        if (self::is_master_key_free_plus($key)) {
+            return array(
+                'valid' => true,
+                'type' => 'free_plus',
+                'max_items' => 60,
+                'expires' => '2099-12-31',
+                'features' => array(),
             );
         }
         
@@ -172,44 +160,18 @@ class WPR_License {
             return array(
                 'valid' => true,
                 'type' => 'pro_plus',
-                'display_name' => 'PRO+',
                 'max_items' => 200,
                 'expires' => '2099-12-31',
                 'features' => array('dark_mode'),
             );
         }
         
-        // Pro Master Key? -> 200 Items
-        if (self::is_master_key_pro($key)) {
+        // Standard Master Key? -> 200 Items
+        if (self::is_master_key($key)) {
             return array(
                 'valid' => true,
                 'type' => 'pro',
-                'display_name' => 'PRO',
                 'max_items' => 200,
-                'expires' => '2099-12-31',
-                'features' => array(),
-            );
-        }
-        
-        // Standard Master Key? -> 60 Items
-        if (self::is_master_key_standard($key)) {
-            return array(
-                'valid' => true,
-                'type' => 'standard',
-                'display_name' => 'STANDARD',
-                'max_items' => 60,
-                'expires' => '2099-12-31',
-                'features' => array(),
-            );
-        }
-        
-        // Free Master Key? -> 20 Items
-        if (self::is_master_key_free($key)) {
-            return array(
-                'valid' => true,
-                'type' => 'free',
-                'display_name' => 'FREE LIZENZ AKTIVIERT',
-                'max_items' => 20,
                 'expires' => '2099-12-31',
                 'features' => array(),
             );
@@ -235,11 +197,10 @@ class WPR_License {
             }
         }
         
-        // Fallback: Free Version (20 Items)
+        // Fallback: Free Version
         return array(
             'valid' => false,
             'type' => 'free',
-            'display_name' => 'KOSTENLOS',
             'max_items' => 20,
             'expires' => '',
             'features' => array(),
@@ -294,7 +255,7 @@ class WPR_License {
             );
         }
         
-        // Ultimate Master Key?
+        // ULTIMATE Master Key?
         if (self::is_master_key_ultimate($key)) {
             update_option('wpr_license_key', $key);
             delete_option('wpr_license_data');
@@ -302,7 +263,20 @@ class WPR_License {
             
             return array(
                 'success' => true,
-                'message' => '🎉 ULTIMATE Master-Lizenz aktiviert! 900 Gerichte + alle Features freigeschaltet.',
+                'message' => '🎉 ULTIMATE Master-Lizenz aktiviert! Alle Features freigeschaltet.',
+                'data' => self::get_license_info(),
+            );
+        }
+        
+        // FREE+ Master Key?
+        if (self::is_master_key_free_plus($key)) {
+            update_option('wpr_license_key', $key);
+            delete_option('wpr_license_data');
+            delete_option('wpr_license_last_check');
+            
+            return array(
+                'success' => true,
+                'message' => '🎉 FREE+ Master-Lizenz aktiviert! 60 Gerichte freigeschaltet.',
                 'data' => self::get_license_info(),
             );
         }
@@ -320,8 +294,8 @@ class WPR_License {
             );
         }
         
-        // Pro Master Key?
-        if (self::is_master_key_pro($key)) {
+        // Standard Master Key?
+        if (self::is_master_key($key)) {
             update_option('wpr_license_key', $key);
             delete_option('wpr_license_data');
             delete_option('wpr_license_last_check');
@@ -329,32 +303,6 @@ class WPR_License {
             return array(
                 'success' => true,
                 'message' => '🎉 PRO Master-Lizenz aktiviert! 200 Gerichte freigeschaltet.',
-                'data' => self::get_license_info(),
-            );
-        }
-        
-        // Standard Master Key?
-        if (self::is_master_key_standard($key)) {
-            update_option('wpr_license_key', $key);
-            delete_option('wpr_license_data');
-            delete_option('wpr_license_last_check');
-            
-            return array(
-                'success' => true,
-                'message' => '🎉 STANDARD Master-Lizenz aktiviert! 60 Gerichte freigeschaltet.',
-                'data' => self::get_license_info(),
-            );
-        }
-        
-        // Free Master Key?
-        if (self::is_master_key_free($key)) {
-            update_option('wpr_license_key', $key);
-            delete_option('wpr_license_data');
-            delete_option('wpr_license_last_check');
-            
-            return array(
-                'success' => true,
-                'message' => '✅ FREE Master-Lizenz aktiviert! 20 Gerichte freigeschaltet.',
                 'data' => self::get_license_info(),
             );
         }
@@ -406,7 +354,7 @@ class WPR_License {
         
         return array(
             'success' => true,
-            'message' => 'Lizenz wurde deaktiviert. Sie nutzen jetzt die kostenlose Version (20 Gerichte).',
+            'message' => 'Lizenz wurde deaktiviert.',
         );
     }
     
@@ -450,25 +398,6 @@ class WPR_License {
         $max_items = $license_info['max_items'];
         $is_over_limit = $total_items > $max_items;
         
-        // Status-Farbe basierend auf Lizenztyp
-        $status_bg = '#fef3c7';
-        $status_border = '#f59e0b';
-        $status_text = '#92400e';
-        
-        if ($license_info['valid'] && $license_info['type'] === 'ultimate') {
-            $status_bg = '#dbeafe';
-            $status_border = '#3b82f6';
-            $status_text = '#1e40af';
-        } elseif ($license_info['valid'] && $license_info['type'] === 'pro_plus') {
-            $status_bg = '#e0e7ff';
-            $status_border = '#6366f1';
-            $status_text = '#312e81';
-        } elseif ($license_info['valid']) {
-            $status_bg = '#dcfce7';
-            $status_border = '#22c55e';
-            $status_text = '#166534';
-        }
-        
         ?>
         <div class="wrap">
             <h1>🔑 Lizenz-Verwaltung</h1>
@@ -477,33 +406,33 @@ class WPR_License {
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <h2 style="margin-top: 0;">📊 Aktueller Status</h2>
                 
-                <?php if ($is_over_limit) : ?>
-                    <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Lizenz-Limit überschritten!</h3>
-                        <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['display_name'])); ?></p>
-                        <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></span> (Überschreitung: <?php echo esc_html($total_items - $max_items); ?>)</p>
-                        <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
-                            <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
-                        <?php endif; ?>
-                    </div>
-                <?php else : ?>
-                    <div style="padding: 15px; background: <?php echo esc_attr($status_bg); ?>; border-left: 4px solid <?php echo esc_attr($status_border); ?>; border-radius: 4px; margin-bottom: 20px;">
-                        <h3 style="margin: 0 0 10px 0; color: <?php echo esc_attr($status_text); ?>;">
-                            <?php if ($license_info['valid']) : ?>
-                                ✅
-                            <?php else : ?>
-                                ⓘ
+                <?php if ($license_info['valid']) : ?>
+                    <?php if ($is_over_limit) : ?>
+                        <div style="padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0; color: #991b1b;">⚠️ Lizenz-Limit überschritten!</h3>
+                            <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['type'])); ?></p>
+                            <p style="margin: 5px 0;"><strong>Gerichte:</strong> <span style="color: #991b1b; font-weight: bold;"><?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></span> (Überschreitung: <?php echo esc_html($total_items - $max_items); ?>)</p>
+                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
+                                <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
                             <?php endif; ?>
-                            <?php echo esc_html($license_info['display_name']); ?>
-                        </h3>
-                        <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['type'])); ?></p>
+                        </div>
+                    <?php else : ?>
+                        <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px; margin-bottom: 20px;">
+                            <h3 style="margin: 0 0 10px 0; color: #047857;">✅ <?php echo $license_info['type'] === 'pro_plus' ? 'PRO+ Lizenz' : 'PRO Lizenz'; ?> aktiv</h3>
+                            <p style="margin: 5px 0;"><strong>Typ:</strong> <?php echo esc_html(strtoupper($license_info['type'])); ?></p>
+                            <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
+                            <?php if (self::has_dark_mode()) : ?>
+                                <p style="margin: 5px 0;"><strong>Features:</strong> <span style="background: #1f2937; color: #fbbf24; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">🌙 Dark Mode</span></p>
+                            <?php endif; ?>
+                            <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
+                                <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php else : ?>
+                    <div style="padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ Free Version</h3>
                         <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
-                        <?php if (self::has_dark_mode()) : ?>
-                            <p style="margin: 5px 0;"><strong>Features:</strong> <span style="background: #1f2937; color: #fbbf24; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">🌙 Dark Mode</span></p>
-                        <?php endif; ?>
-                        <?php if (!empty($license_info['expires']) && $license_info['expires'] !== '2099-12-31') : ?>
-                            <p style="margin: 5px 0;"><strong>Gültig bis:</strong> <?php echo esc_html(date('d.m.Y', strtotime($license_info['expires']))); ?></p>
-                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
                 
@@ -529,69 +458,40 @@ class WPR_License {
                     </form>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px;">
-                    <!-- FREE -->
-                    <div style="padding: 15px; border: 2px solid #d1d5db; border-radius: 8px;">
-                        <h3 style="margin: 0 0 8px 0; font-size: 1.1em;"><?php echo esc_html($pricing['free']['label']); ?></h3>
-                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                    <div style="padding: 20px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                        <h3 style="margin: 0 0 10px 0;"><?php echo esc_html($pricing['free']['label']); ?></h3>
+                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0;">
                             <?php echo esc_html($pricing['free']['price']); ?><?php echo esc_html($pricing['free']['currency']); ?>
                         </p>
-                        <ul style="list-style: none; padding: 0; margin: 12px 0; font-size: 0.9em;">
-                            <li style="margin: 5px 0;">✅ 20 Gerichte</li>
-                            <li style="margin: 5px 0;">✅ Basis-Features</li>
-                            <li style="margin: 5px 0;">❌ Kein Dark Mode</li>
+                        <ul style="list-style: none; padding: 0; margin: 15px 0;">
+                            <li style="margin: 8px 0;">✅ Bis zu 20 Gerichte</li>
+                            <li style="margin: 8px 0;">✅ Alle Basis-Features</li>
+                            <li style="margin: 8px 0;">❌ Kein Dark Mode</li>
                         </ul>
                     </div>
                     
-                    <!-- STANDARD -->
-                    <div style="padding: 15px; border: 2px solid #6ee7b7; border-radius: 8px; background: #ecfdf5;">
-                        <h3 style="margin: 0 0 8px 0; font-size: 1.1em; color: #065f46;"><?php echo esc_html($pricing['standard']['label']); ?></h3>
-                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #065f46;">
-                            <?php echo esc_html($pricing['standard']['price']); ?><?php echo esc_html($pricing['standard']['currency']); ?>
-                        </p>
-                        <ul style="list-style: none; padding: 0; margin: 12px 0; font-size: 0.9em;">
-                            <li style="margin: 5px 0;">✅ 60 Gerichte</li>
-                            <li style="margin: 5px 0;">✅ Alle Features</li>
-                            <li style="margin: 5px 0;">❌ Kein Dark Mode</li>
-                        </ul>
-                    </div>
-                    
-                    <!-- PRO -->
-                    <div style="padding: 15px; border: 2px solid #d97706; border-radius: 8px; background: #fef3c7;">
-                        <h3 style="margin: 0 0 8px 0; font-size: 1.1em; color: #92400e;"><?php echo esc_html($pricing['pro']['label']); ?></h3>
-                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #92400e;">
+                    <div style="padding: 20px; border: 2px solid #d97706; border-radius: 8px; background: #fef3c7;">
+                        <h3 style="margin: 0 0 10px 0; color: #92400e;"><?php echo esc_html($pricing['pro']['label']); ?></h3>
+                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #92400e;">
                             <?php echo esc_html($pricing['pro']['price']); ?><?php echo esc_html($pricing['pro']['currency']); ?>
                         </p>
-                        <ul style="list-style: none; padding: 0; margin: 12px 0; font-size: 0.9em;">
-                            <li style="margin: 5px 0;">✅ 200 Gerichte</li>
-                            <li style="margin: 5px 0;">✅ Alle Features</li>
-                            <li style="margin: 5px 0;">❌ Kein Dark Mode</li>
+                        <ul style="list-style: none; padding: 0; margin: 15px 0;">
+                            <li style="margin: 8px 0;">✅ Bis zu 200 Gerichte (Standard)</li>
+                            <li style="margin: 8px 0;">✅ Individuell anpassbar</li>
+                            <li style="margin: 8px 0;">❌ Kein Dark Mode</li>
                         </ul>
                     </div>
                     
-                    <!-- PRO+ -->
-                    <div style="padding: 15px; border: 2px solid #6366f1; border-radius: 8px; background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);">
-                        <h3 style="margin: 0 0 8px 0; font-size: 1.1em; color: #312e81;">🌟 <?php echo esc_html($pricing['pro_plus']['label']); ?></h3>
-                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #312e81;">
+                    <div style="padding: 20px; border: 2px solid #1f2937; border-radius: 8px; background: linear-gradient(135deg, #1f2937 0%, #374151 100%); color: #fff;">
+                        <h3 style="margin: 0 0 10px 0; color: #fbbf24;"><?php echo esc_html($pricing['pro_plus']['label']); ?> 🌟</h3>
+                        <p style="font-size: 2em; font-weight: bold; margin: 10px 0; color: #fbbf24;">
                             <?php echo esc_html($pricing['pro_plus']['price']); ?><?php echo esc_html($pricing['pro_plus']['currency']); ?>
                         </p>
-                        <ul style="list-style: none; padding: 0; margin: 12px 0; font-size: 0.9em;">
-                            <li style="margin: 5px 0;">✅ 200 Gerichte</li>
-                            <li style="margin: 5px 0;">✅ Alle Features</li>
-                            <li style="margin: 5px 0; color: #6366f1; font-weight: bold;">🌙 Dark Mode</li>
-                        </ul>
-                    </div>
-                    
-                    <!-- ULTIMATE -->
-                    <div style="padding: 15px; border: 2px solid #0284c7; border-radius: 8px; background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
-                        <h3 style="margin: 0 0 8px 0; font-size: 1.1em; color: #1e40af;">👑 <?php echo esc_html($pricing['ultimate']['label']); ?></h3>
-                        <p style="font-size: 1.8em; font-weight: bold; margin: 8px 0; color: #1e40af;">
-                            <?php echo esc_html($pricing['ultimate']['price']); ?><?php echo esc_html($pricing['ultimate']['currency']); ?>
-                        </p>
-                        <ul style="list-style: none; padding: 0; margin: 12px 0; font-size: 0.9em;">
-                            <li style="margin: 5px 0;">✅ 900 Gerichte</li>
-                            <li style="margin: 5px 0;">✅ Alle Features</li>
-                            <li style="margin: 5px 0; color: #1e40af; font-weight: bold;">🌙 Dark Mode</li>
+                        <ul style="list-style: none; padding: 0; margin: 15px 0;">
+                            <li style="margin: 8px 0;">✅ Bis zu 200 Gerichte (Standard)</li>
+                            <li style="margin: 8px 0;">✅ Individuell anpassbar</li>
+                            <li style="margin: 8px 0; color: #fbbf24; font-weight: bold;">🌙 Dark Mode</li>
                         </ul>
                     </div>
                 </div>
@@ -617,17 +517,7 @@ class WPR_License {
                                     placeholder="WPR-XXXXX-XXXXX-XXXXX"
                                 />
                                 <p class="description">
-                                    Geben Sie Ihren Lizenzschlüssel ein. Verfügbare Master Keys zur Demo:
-                                    <br>
-                                    <strong>Free:</strong> WPR-FREE-2025-KEY1-ALPHA
-                                    <br>
-                                    <strong>Standard:</strong> WPR-STANDARD-2025-KEY1-ALPHA
-                                    <br>
-                                    <strong>Pro:</strong> WPR-PRO-2025-KEY1-DELTA
-                                    <br>
-                                    <strong>Pro+:</strong> WPR-PROPLUS-2025-KEY1-OMEGA
-                                    <br>
-                                    <strong>Ultimate:</strong> WPR-ULTIMATE-2025-KEY1-PSILONALPHA
+                                    Geben Sie Ihren Lizenzschlüssel ein. Die Details (Preise, Features) für Premium-Lizenzen werden vom Lizenz-Server verwaltet.
                                 </p>
                             </td>
                         </tr>
