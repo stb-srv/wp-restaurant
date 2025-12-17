@@ -1,6 +1,7 @@
 <?php
 /**
- * License Server - Helper Functions (DB-basiert!)
+ * License Server - Functions
+ * Version 2.1 - Fixed and Working
  */
 
 if (!defined('LICENSE_SERVER')) {
@@ -12,7 +13,7 @@ function sanitize_input($input) {
     return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
 }
 
-// JSON Response senden
+// JSON Response
 function json_response($data, $status = 200) {
     http_response_code($status);
     header('Content-Type: application/json');
@@ -21,83 +22,93 @@ function json_response($data, $status = 200) {
     exit;
 }
 
-// Preise laden (aus DB!)
+// Preise laden
 function get_pricing() {
     $db = LicenseDB::getInstance();
+    if (!$db || !$db->getConnection()) {
+        return array(
+            'free' => array('price' => 0, 'currency' => '€', 'label' => 'FREE'),
+            'pro' => array('price' => 29, 'currency' => '€', 'label' => 'PRO'),
+            'pro_plus' => array('price' => 49, 'currency' => '€', 'label' => 'PRO+'),
+        );
+    }
     return $db->getPricing();
 }
 
-// Preise speichern (in DB!)
+// Preise speichern
 function save_pricing($pricing) {
     $db = LicenseDB::getInstance();
-    return $db->savePricing($pricing);
+    return $db && $db->getConnection() ? $db->savePricing($pricing) : false;
 }
 
-// Lizenzen laden (aus DB!)
+// Lizenzen laden
 function get_licenses() {
     $db = LicenseDB::getInstance();
-    return $db->getAllLicenses();
+    return $db && $db->getConnection() ? $db->getAllLicenses() : array();
 }
 
-// Einzelne Lizenz laden (aus DB!)
+// Einzelne Lizenz
 function get_license($key) {
     $db = LicenseDB::getInstance();
-    return $db->getLicense($key);
+    return $db && $db->getConnection() ? $db->getLicense($key) : null;
 }
 
-// Lizenz hinzufügen/aktualisieren (in DB!)
+// Lizenz speichern
 function save_license($key, $data) {
     $db = LicenseDB::getInstance();
-    return $db->saveLicense($key, $data);
+    return $db && $db->getConnection() ? $db->saveLicense($key, $data) : false;
 }
 
-// Lizenz löschen (aus DB!)
+// Lizenz löschen
 function delete_license($key) {
     $db = LicenseDB::getInstance();
-    return $db->deleteLicense($key);
+    return $db && $db->getConnection() ? $db->deleteLicense($key) : false;
 }
 
-// Lizenzschlüssel generieren
-function generate_license_key($type = 'pro') {
+// Lizenzschlüssel generieren (3 oder 4 Segmente)
+function generate_license_key($segments = 3) {
     $prefix = 'WPR';
-    $segments = [];
+    $parts = array();
     
-    for ($i = 0; $i < 4; $i++) {
-        $segments[] = strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+    // 3 oder 4 Segmente nach WPR-
+    $count = in_array($segments, array(3, 4)) ? $segments : 3;
+    
+    for ($i = 0; $i < $count; $i++) {
+        $parts[] = strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
     }
     
-    return $prefix . '-' . implode('-', $segments);
+    return $prefix . '-' . implode('-', $parts);
 }
 
-// Logging (in DB!)
+// Logging
 function log_message($message, $type = 'info') {
     $db = LicenseDB::getInstance();
-    $db->log($type, $message);
+    if ($db && $db->getConnection()) {
+        $db->log($type, $message);
+    }
 }
 
 // Statistiken
 function get_stats() {
     $licenses = get_licenses();
     
-    $stats = [
+    $stats = array(
         'total' => count($licenses),
         'active' => 0,
         'expired' => 0,
-        'by_type' => [
+        'by_type' => array(
             'free' => 0,
             'pro' => 0,
             'pro_plus' => 0,
-        ],
-    ];
+        ),
+    );
     
     foreach ($licenses as $license) {
-        // Type zählen
         $type = $license['type'] ?? 'free';
         if (isset($stats['by_type'][$type])) {
             $stats['by_type'][$type]++;
         }
         
-        // Aktiv/Expired
         if (isset($license['expires'])) {
             if ($license['expires'] === 'lifetime' || strtotime($license['expires']) > time()) {
                 $stats['active']++;
