@@ -21,11 +21,13 @@ if ($action === 'get_pricing') {
     if (file_exists($DATA_FILE)) {
         $pricing = json_decode(file_get_contents($DATA_FILE), true);
     } else {
-        // Fallback Preise
+        // Fallback Preise (mit neuen Modellen)
         $pricing = array(
             'free' => array('price' => 0, 'currency' => '€', 'label' => 'FREE'),
+            'free_plus' => array('price' => 15, 'currency' => '€', 'label' => 'FREE+'),
             'pro' => array('price' => 29, 'currency' => '€', 'label' => 'PRO'),
             'pro_plus' => array('price' => 49, 'currency' => '€', 'label' => 'PRO+'),
+            'ultimate' => array('price' => 79, 'currency' => '€', 'label' => 'ULTIMATE'),
         );
     }
     
