@@ -1,19 +1,17 @@
 <?php
 /**
  * WP Restaurant Menu - License Server Admin Panel
- * 
- * Installation:
- * 1. Lade dieses File auf deinen Lizenz-Server hoch
- * 2. Rufe es im Browser auf: https://deine-domain.com/admin-panel.php
- * 3. Standard-Passwort: admin123 (ÄNDERE ES SOFORT!)
+ * Version 2.0 - Database-backed with description support
  */
 
 session_start();
 
 // KONFIGURATION
 $ADMIN_PASSWORD = 'admin123'; // ÄNDERE DIES!
-$DATA_FILE = __DIR__ . '/pricing.json';
-$LICENSES_FILE = __DIR__ . '/licenses.json';
+
+// Database laden
+define('LICENSE_SERVER', true);
+require_once __DIR__ . '/includes/database.php';
 
 // Login prüfen
 if (isset($_POST['login'])) {
@@ -111,6 +109,9 @@ if (!isset($_SESSION['logged_in'])) {
     exit;
 }
 
+// Database-Instanz
+$db = LicenseDB::getInstance();
+
 // Preise speichern
 if (isset($_POST['save_pricing'])) {
     $pricing = array(
@@ -118,46 +119,53 @@ if (isset($_POST['save_pricing'])) {
             'price' => intval($_POST['free_price']),
             'currency' => sanitize_text($_POST['free_currency']),
             'label' => sanitize_text($_POST['free_label']),
+            'description' => sanitize_text($_POST['free_description']),
+            'max_items' => 20,
+            'features' => array(),
         ),
         'free_plus' => array(
             'price' => intval($_POST['free_plus_price']),
             'currency' => sanitize_text($_POST['free_plus_currency']),
             'label' => sanitize_text($_POST['free_plus_label']),
+            'description' => sanitize_text($_POST['free_plus_description']),
+            'max_items' => 60,
+            'features' => array(),
         ),
         'pro' => array(
             'price' => intval($_POST['pro_price']),
             'currency' => sanitize_text($_POST['pro_currency']),
             'label' => sanitize_text($_POST['pro_label']),
+            'description' => sanitize_text($_POST['pro_description']),
+            'max_items' => 200,
+            'features' => array(),
         ),
         'pro_plus' => array(
             'price' => intval($_POST['pro_plus_price']),
             'currency' => sanitize_text($_POST['pro_plus_currency']),
             'label' => sanitize_text($_POST['pro_plus_label']),
+            'description' => sanitize_text($_POST['pro_plus_description']),
+            'max_items' => 200,
+            'features' => array('dark_mode', 'cart'),
         ),
         'ultimate' => array(
             'price' => intval($_POST['ultimate_price']),
             'currency' => sanitize_text($_POST['ultimate_currency']),
             'label' => sanitize_text($_POST['ultimate_label']),
+            'description' => sanitize_text($_POST['ultimate_description']),
+            'max_items' => 900,
+            'features' => array('dark_mode', 'cart', 'unlimited_items'),
         ),
     );
     
-    file_put_contents($DATA_FILE, json_encode($pricing, JSON_PRETTY_PRINT));
-    $success = 'Preise erfolgreich gespeichert!';
+    if ($db->savePricing($pricing)) {
+        $success = 'Preise und Beschreibungen erfolgreich gespeichert!';
+    } else {
+        $error_save = 'Fehler beim Speichern!';
+    }
 }
 
 // Aktuelle Preise laden
-if (file_exists($DATA_FILE)) {
-    $pricing = json_decode(file_get_contents($DATA_FILE), true);
-} else {
-    // Standardwerte
-    $pricing = array(
-        'free' => array('price' => 0, 'currency' => '€', 'label' => 'FREE'),
-        'free_plus' => array('price' => 15, 'currency' => '€', 'label' => 'FREE+'),
-        'pro' => array('price' => 29, 'currency' => '€', 'label' => 'PRO'),
-        'pro_plus' => array('price' => 49, 'currency' => '€', 'label' => 'PRO+'),
-        'ultimate' => array('price' => 79, 'currency' => '€', 'label' => 'ULTIMATE'),
-    );
-}
+$pricing = $db->getPricing();
 
 function sanitize_text($text) {
     return htmlspecialchars(strip_tags(trim($text)), ENT_QUOTES, 'UTF-8');
@@ -181,7 +189,7 @@ function sanitize_text($text) {
             padding: 20px;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
         .header {
@@ -223,8 +231,8 @@ function sanitize_text($text) {
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
         }
         .package {
@@ -241,6 +249,9 @@ function sanitize_text($text) {
             margin-bottom: 15px;
             color: #374151;
             font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .package.new h3 {
             color: #047857;
@@ -255,14 +266,19 @@ function sanitize_text($text) {
             font-weight: 500;
             font-size: 13px;
         }
-        input {
+        input, textarea {
             width: 100%;
             padding: 8px;
             border: 2px solid #e5e7eb;
             border-radius: 6px;
             font-size: 13px;
+            font-family: inherit;
         }
-        input:focus {
+        textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+        input:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -286,6 +302,14 @@ function sanitize_text($text) {
             border-radius: 6px;
             margin-bottom: 20px;
             border-left: 4px solid #10b981;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ef4444;
         }
         .info-box {
             background: #f0f9ff;
@@ -314,7 +338,6 @@ function sanitize_text($text) {
             border-radius: 3px;
             font-size: 11px;
             font-weight: 600;
-            margin-left: 5px;
         }
     </style>
 </head>
@@ -329,8 +352,13 @@ function sanitize_text($text) {
             <div class="success">✅ <?php echo htmlspecialchars($success); ?></div>
         <?php endif; ?>
         
+        <?php if (isset($error_save)) : ?>
+            <div class="error">❌ <?php echo htmlspecialchars($error_save); ?></div>
+        <?php endif; ?>
+        
         <div class="card">
-            <h2>💰 Preisverwaltung</h2>
+            <h2>💰 Preis- & Beschreibungsverwaltung</h2>
+            <p style="color: #6b7280; margin-bottom: 20px;">Bearbeiten Sie Preise und Beschreibungen für alle Lizenzmodelle. Änderungen werden sofort an alle Plugins übertragen.</p>
             
             <form method="post">
                 <div class="grid">
@@ -349,9 +377,13 @@ function sanitize_text($text) {
                             <label>Währung</label>
                             <input type="text" name="free_currency" value="<?php echo htmlspecialchars($pricing['free']['currency']); ?>" required maxlength="3">
                         </div>
+                        <div class="form-group">
+                            <label>Beschreibung</label>
+                            <textarea name="free_description" rows="3"><?php echo htmlspecialchars($pricing['free']['description'] ?? ''); ?></textarea>
+                        </div>
                     </div>
                     
-                    <!-- FREE+ (NEW) -->
+                    <!-- FREE+ -->
                     <div class="package new">
                         <h3>FREE+ Paket <span class="badge">NEU</span></h3>
                         <div class="form-group">
@@ -365,6 +397,10 @@ function sanitize_text($text) {
                         <div class="form-group">
                             <label>Währung</label>
                             <input type="text" name="free_plus_currency" value="<?php echo htmlspecialchars($pricing['free_plus']['currency']); ?>" required maxlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label>Beschreibung</label>
+                            <textarea name="free_plus_description" rows="3"><?php echo htmlspecialchars($pricing['free_plus']['description'] ?? ''); ?></textarea>
                         </div>
                     </div>
                     
@@ -383,6 +419,10 @@ function sanitize_text($text) {
                             <label>Währung</label>
                             <input type="text" name="pro_currency" value="<?php echo htmlspecialchars($pricing['pro']['currency']); ?>" required maxlength="3">
                         </div>
+                        <div class="form-group">
+                            <label>Beschreibung</label>
+                            <textarea name="pro_description" rows="3"><?php echo htmlspecialchars($pricing['pro']['description'] ?? ''); ?></textarea>
+                        </div>
                     </div>
                     
                     <!-- PRO+ -->
@@ -400,9 +440,13 @@ function sanitize_text($text) {
                             <label>Währung</label>
                             <input type="text" name="pro_plus_currency" value="<?php echo htmlspecialchars($pricing['pro_plus']['currency']); ?>" required maxlength="3">
                         </div>
+                        <div class="form-group">
+                            <label>Beschreibung</label>
+                            <textarea name="pro_plus_description" rows="3"><?php echo htmlspecialchars($pricing['pro_plus']['description'] ?? ''); ?></textarea>
+                        </div>
                     </div>
                     
-                    <!-- ULTIMATE (NEW) -->
+                    <!-- ULTIMATE -->
                     <div class="package new">
                         <h3>ULTIMATE Paket <span class="badge">NEU</span></h3>
                         <div class="form-group">
@@ -417,16 +461,20 @@ function sanitize_text($text) {
                             <label>Währung</label>
                             <input type="text" name="ultimate_currency" value="<?php echo htmlspecialchars($pricing['ultimate']['currency']); ?>" required maxlength="3">
                         </div>
+                        <div class="form-group">
+                            <label>Beschreibung</label>
+                            <textarea name="ultimate_description" rows="3"><?php echo htmlspecialchars($pricing['ultimate']['description'] ?? ''); ?></textarea>
+                        </div>
                     </div>
                 </div>
                 
-                <button type="submit" name="save_pricing">💾 Preise speichern</button>
+                <button type="submit" name="save_pricing">💾 Speichern & Synchronisieren</button>
             </form>
             
             <div class="info-box">
                 <h3>💡 API Endpoint</h3>
                 <p>Die Preise werden automatisch über die API bereitgestellt:</p>
-                <p style="margin-top: 10px;"><code><?php echo htmlspecialchars('https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/license-api.php?action=get_pricing'); ?></code></p>
+                <p style="margin-top: 10px;"><code><?php echo htmlspecialchars('https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/api.php?action=get_pricing'); ?></code></p>
                 <p style="margin-top: 15px; color: #374151;">Diese URL muss im WordPress-Plugin als "Lizenz-Server URL" eingetragen werden.</p>
             </div>
         </div>
