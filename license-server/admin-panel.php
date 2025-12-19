@@ -1,17 +1,31 @@
 <?php
 /**
  * WP Restaurant Menu - License Server Admin Panel
- * Version 2.0 - Database-backed with description support
+ * Version 2.1 - Robust error handling
  */
+
+// Error reporting für Debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 session_start();
 
 // KONFIGURATION
 $ADMIN_PASSWORD = 'admin123'; // ÄNDERE DIES!
 
-// Database laden
-define('LICENSE_SERVER', true);
-require_once __DIR__ . '/includes/database.php';
+// Database laden mit Error Handling
+try {
+    define('LICENSE_SERVER', true);
+    
+    if (!file_exists(__DIR__ . '/includes/database.php')) {
+        throw new Exception('Database class not found');
+    }
+    
+    require_once __DIR__ . '/includes/database.php';
+} catch (Exception $e) {
+    die('<h1>Fehler</h1><p>Konnte Datenbank-Klasse nicht laden: ' . htmlspecialchars($e->getMessage()) . '</p>');
+}
 
 // Login prüfen
 if (isset($_POST['login'])) {
@@ -99,7 +113,7 @@ if (!isset($_SESSION['logged_in'])) {
                 <div class="error"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             <form method="post">
-                <input type="password" name="password" placeholder="Admin-Passwort" required>
+                <input type="password" name="password" placeholder="Admin-Passwort" required autofocus>
                 <button type="submit" name="login">Login</button>
             </form>
         </div>
@@ -109,63 +123,94 @@ if (!isset($_SESSION['logged_in'])) {
     exit;
 }
 
-// Database-Instanz
-$db = LicenseDB::getInstance();
+// Database-Instanz mit Error Handling
+try {
+    $db = LicenseDB::getInstance();
+    
+    if (!$db || !$db->getConnection()) {
+        throw new Exception('Konnte keine Verbindung zur Datenbank herstellen');
+    }
+    
+    // Tabellen erstellen falls nicht vorhanden
+    $db->createTables();
+    
+} catch (Exception $e) {
+    die('<h1>Datenbankfehler</h1><p>' . htmlspecialchars($e->getMessage()) . '</p><p><a href="?logout">Logout</a></p>');
+}
 
 // Preise speichern
 if (isset($_POST['save_pricing'])) {
-    $pricing = array(
-        'free' => array(
-            'price' => intval($_POST['free_price']),
-            'currency' => sanitize_text($_POST['free_currency']),
-            'label' => sanitize_text($_POST['free_label']),
-            'description' => sanitize_text($_POST['free_description']),
-            'max_items' => 20,
-            'features' => array(),
-        ),
-        'free_plus' => array(
-            'price' => intval($_POST['free_plus_price']),
-            'currency' => sanitize_text($_POST['free_plus_currency']),
-            'label' => sanitize_text($_POST['free_plus_label']),
-            'description' => sanitize_text($_POST['free_plus_description']),
-            'max_items' => 60,
-            'features' => array(),
-        ),
-        'pro' => array(
-            'price' => intval($_POST['pro_price']),
-            'currency' => sanitize_text($_POST['pro_currency']),
-            'label' => sanitize_text($_POST['pro_label']),
-            'description' => sanitize_text($_POST['pro_description']),
-            'max_items' => 200,
-            'features' => array(),
-        ),
-        'pro_plus' => array(
-            'price' => intval($_POST['pro_plus_price']),
-            'currency' => sanitize_text($_POST['pro_plus_currency']),
-            'label' => sanitize_text($_POST['pro_plus_label']),
-            'description' => sanitize_text($_POST['pro_plus_description']),
-            'max_items' => 200,
-            'features' => array('dark_mode', 'cart'),
-        ),
-        'ultimate' => array(
-            'price' => intval($_POST['ultimate_price']),
-            'currency' => sanitize_text($_POST['ultimate_currency']),
-            'label' => sanitize_text($_POST['ultimate_label']),
-            'description' => sanitize_text($_POST['ultimate_description']),
-            'max_items' => 900,
-            'features' => array('dark_mode', 'cart', 'unlimited_items'),
-        ),
-    );
-    
-    if ($db->savePricing($pricing)) {
-        $success = 'Preise und Beschreibungen erfolgreich gespeichert!';
-    } else {
-        $error_save = 'Fehler beim Speichern!';
+    try {
+        $pricing = array(
+            'free' => array(
+                'price' => intval($_POST['free_price'] ?? 0),
+                'currency' => sanitize_text($_POST['free_currency'] ?? '€'),
+                'label' => sanitize_text($_POST['free_label'] ?? 'FREE'),
+                'description' => sanitize_text($_POST['free_description'] ?? ''),
+                'max_items' => 20,
+                'features' => array(),
+            ),
+            'free_plus' => array(
+                'price' => intval($_POST['free_plus_price'] ?? 15),
+                'currency' => sanitize_text($_POST['free_plus_currency'] ?? '€'),
+                'label' => sanitize_text($_POST['free_plus_label'] ?? 'FREE+'),
+                'description' => sanitize_text($_POST['free_plus_description'] ?? ''),
+                'max_items' => 60,
+                'features' => array(),
+            ),
+            'pro' => array(
+                'price' => intval($_POST['pro_price'] ?? 29),
+                'currency' => sanitize_text($_POST['pro_currency'] ?? '€'),
+                'label' => sanitize_text($_POST['pro_label'] ?? 'PRO'),
+                'description' => sanitize_text($_POST['pro_description'] ?? ''),
+                'max_items' => 200,
+                'features' => array(),
+            ),
+            'pro_plus' => array(
+                'price' => intval($_POST['pro_plus_price'] ?? 49),
+                'currency' => sanitize_text($_POST['pro_plus_currency'] ?? '€'),
+                'label' => sanitize_text($_POST['pro_plus_label'] ?? 'PRO+'),
+                'description' => sanitize_text($_POST['pro_plus_description'] ?? ''),
+                'max_items' => 200,
+                'features' => array('dark_mode', 'cart'),
+            ),
+            'ultimate' => array(
+                'price' => intval($_POST['ultimate_price'] ?? 79),
+                'currency' => sanitize_text($_POST['ultimate_currency'] ?? '€'),
+                'label' => sanitize_text($_POST['ultimate_label'] ?? 'ULTIMATE'),
+                'description' => sanitize_text($_POST['ultimate_description'] ?? ''),
+                'max_items' => 900,
+                'features' => array('dark_mode', 'cart', 'unlimited_items'),
+            ),
+        );
+        
+        if ($db->savePricing($pricing)) {
+            $success = 'Preise und Beschreibungen erfolgreich gespeichert!';
+        } else {
+            $error_save = 'Fehler beim Speichern!';
+        }
+    } catch (Exception $e) {
+        $error_save = 'Fehler: ' . $e->getMessage();
     }
 }
 
 // Aktuelle Preise laden
-$pricing = $db->getPricing();
+try {
+    $pricing = $db->getPricing();
+    if (empty($pricing)) {
+        // Fallback mit Standard-Werten
+        $pricing = array(
+            'free' => array('price' => 0, 'currency' => '€', 'label' => 'FREE', 'description' => '', 'max_items' => 20, 'features' => array()),
+            'free_plus' => array('price' => 15, 'currency' => '€', 'label' => 'FREE+', 'description' => '', 'max_items' => 60, 'features' => array()),
+            'pro' => array('price' => 29, 'currency' => '€', 'label' => 'PRO', 'description' => '', 'max_items' => 200, 'features' => array()),
+            'pro_plus' => array('price' => 49, 'currency' => '€', 'label' => 'PRO+', 'description' => '', 'max_items' => 200, 'features' => array('dark_mode', 'cart')),
+            'ultimate' => array('price' => 79, 'currency' => '€', 'label' => 'ULTIMATE', 'description' => '', 'max_items' => 900, 'features' => array('dark_mode', 'cart', 'unlimited_items')),
+        );
+    }
+} catch (Exception $e) {
+    $error_load = 'Fehler beim Laden: ' . $e->getMessage();
+    $pricing = array();
+}
 
 function sanitize_text($text) {
     return htmlspecialchars(strip_tags(trim($text)), ENT_QUOTES, 'UTF-8');
@@ -329,6 +374,7 @@ function sanitize_text($text) {
             border-radius: 3px;
             font-family: monospace;
             font-size: 13px;
+            word-break: break-all;
         }
         .badge {
             display: inline-block;
@@ -356,125 +402,133 @@ function sanitize_text($text) {
             <div class="error">❌ <?php echo htmlspecialchars($error_save); ?></div>
         <?php endif; ?>
         
+        <?php if (isset($error_load)) : ?>
+            <div class="error">⚠️ <?php echo htmlspecialchars($error_load); ?></div>
+        <?php endif; ?>
+        
         <div class="card">
             <h2>💰 Preis- & Beschreibungsverwaltung</h2>
             <p style="color: #6b7280; margin-bottom: 20px;">Bearbeiten Sie Preise und Beschreibungen für alle Lizenzmodelle. Änderungen werden sofort an alle Plugins übertragen.</p>
             
-            <form method="post">
-                <div class="grid">
-                    <!-- FREE -->
-                    <div class="package">
-                        <h3>FREE Paket</h3>
-                        <div class="form-group">
-                            <label>Label</label>
-                            <input type="text" name="free_label" value="<?php echo htmlspecialchars($pricing['free']['label']); ?>" required>
+            <?php if (empty($pricing)) : ?>
+                <div class="error">Keine Preis-Daten gefunden. Bitte prüfen Sie die Datenbank-Konfiguration.</div>
+            <?php else : ?>
+                <form method="post">
+                    <div class="grid">
+                        <!-- FREE -->
+                        <div class="package">
+                            <h3>FREE Paket</h3>
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="free_label" value="<?php echo htmlspecialchars($pricing['free']['label'] ?? 'FREE'); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Preis</label>
+                                <input type="number" name="free_price" value="<?php echo htmlspecialchars($pricing['free']['price'] ?? 0); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Währung</label>
+                                <input type="text" name="free_currency" value="<?php echo htmlspecialchars($pricing['free']['currency'] ?? '€'); ?>" required maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Beschreibung</label>
+                                <textarea name="free_description" rows="3"><?php echo htmlspecialchars($pricing['free']['description'] ?? ''); ?></textarea>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Preis</label>
-                            <input type="number" name="free_price" value="<?php echo htmlspecialchars($pricing['free']['price']); ?>" required>
+                        
+                        <!-- FREE+ -->
+                        <div class="package new">
+                            <h3>FREE+ Paket <span class="badge">NEU</span></h3>
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="free_plus_label" value="<?php echo htmlspecialchars($pricing['free_plus']['label'] ?? 'FREE+'); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Preis</label>
+                                <input type="number" name="free_plus_price" value="<?php echo htmlspecialchars($pricing['free_plus']['price'] ?? 15); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Währung</label>
+                                <input type="text" name="free_plus_currency" value="<?php echo htmlspecialchars($pricing['free_plus']['currency'] ?? '€'); ?>" required maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Beschreibung</label>
+                                <textarea name="free_plus_description" rows="3"><?php echo htmlspecialchars($pricing['free_plus']['description'] ?? ''); ?></textarea>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Währung</label>
-                            <input type="text" name="free_currency" value="<?php echo htmlspecialchars($pricing['free']['currency']); ?>" required maxlength="3">
+                        
+                        <!-- PRO -->
+                        <div class="package">
+                            <h3>PRO Paket</h3>
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="pro_label" value="<?php echo htmlspecialchars($pricing['pro']['label'] ?? 'PRO'); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Preis</label>
+                                <input type="number" name="pro_price" value="<?php echo htmlspecialchars($pricing['pro']['price'] ?? 29); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Währung</label>
+                                <input type="text" name="pro_currency" value="<?php echo htmlspecialchars($pricing['pro']['currency'] ?? '€'); ?>" required maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Beschreibung</label>
+                                <textarea name="pro_description" rows="3"><?php echo htmlspecialchars($pricing['pro']['description'] ?? ''); ?></textarea>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Beschreibung</label>
-                            <textarea name="free_description" rows="3"><?php echo htmlspecialchars($pricing['free']['description'] ?? ''); ?></textarea>
+                        
+                        <!-- PRO+ -->
+                        <div class="package">
+                            <h3>PRO+ Paket</h3>
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="pro_plus_label" value="<?php echo htmlspecialchars($pricing['pro_plus']['label'] ?? 'PRO+'); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Preis</label>
+                                <input type="number" name="pro_plus_price" value="<?php echo htmlspecialchars($pricing['pro_plus']['price'] ?? 49); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Währung</label>
+                                <input type="text" name="pro_plus_currency" value="<?php echo htmlspecialchars($pricing['pro_plus']['currency'] ?? '€'); ?>" required maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Beschreibung</label>
+                                <textarea name="pro_plus_description" rows="3"><?php echo htmlspecialchars($pricing['pro_plus']['description'] ?? ''); ?></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- ULTIMATE -->
+                        <div class="package new">
+                            <h3>ULTIMATE Paket <span class="badge">NEU</span></h3>
+                            <div class="form-group">
+                                <label>Label</label>
+                                <input type="text" name="ultimate_label" value="<?php echo htmlspecialchars($pricing['ultimate']['label'] ?? 'ULTIMATE'); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Preis</label>
+                                <input type="number" name="ultimate_price" value="<?php echo htmlspecialchars($pricing['ultimate']['price'] ?? 79); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Währung</label>
+                                <input type="text" name="ultimate_currency" value="<?php echo htmlspecialchars($pricing['ultimate']['currency'] ?? '€'); ?>" required maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label>Beschreibung</label>
+                                <textarea name="ultimate_description" rows="3"><?php echo htmlspecialchars($pricing['ultimate']['description'] ?? ''); ?></textarea>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- FREE+ -->
-                    <div class="package new">
-                        <h3>FREE+ Paket <span class="badge">NEU</span></h3>
-                        <div class="form-group">
-                            <label>Label</label>
-                            <input type="text" name="free_plus_label" value="<?php echo htmlspecialchars($pricing['free_plus']['label']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Preis</label>
-                            <input type="number" name="free_plus_price" value="<?php echo htmlspecialchars($pricing['free_plus']['price']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Währung</label>
-                            <input type="text" name="free_plus_currency" value="<?php echo htmlspecialchars($pricing['free_plus']['currency']); ?>" required maxlength="3">
-                        </div>
-                        <div class="form-group">
-                            <label>Beschreibung</label>
-                            <textarea name="free_plus_description" rows="3"><?php echo htmlspecialchars($pricing['free_plus']['description'] ?? ''); ?></textarea>
-                        </div>
-                    </div>
-                    
-                    <!-- PRO -->
-                    <div class="package">
-                        <h3>PRO Paket</h3>
-                        <div class="form-group">
-                            <label>Label</label>
-                            <input type="text" name="pro_label" value="<?php echo htmlspecialchars($pricing['pro']['label']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Preis</label>
-                            <input type="number" name="pro_price" value="<?php echo htmlspecialchars($pricing['pro']['price']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Währung</label>
-                            <input type="text" name="pro_currency" value="<?php echo htmlspecialchars($pricing['pro']['currency']); ?>" required maxlength="3">
-                        </div>
-                        <div class="form-group">
-                            <label>Beschreibung</label>
-                            <textarea name="pro_description" rows="3"><?php echo htmlspecialchars($pricing['pro']['description'] ?? ''); ?></textarea>
-                        </div>
-                    </div>
-                    
-                    <!-- PRO+ -->
-                    <div class="package">
-                        <h3>PRO+ Paket</h3>
-                        <div class="form-group">
-                            <label>Label</label>
-                            <input type="text" name="pro_plus_label" value="<?php echo htmlspecialchars($pricing['pro_plus']['label']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Preis</label>
-                            <input type="number" name="pro_plus_price" value="<?php echo htmlspecialchars($pricing['pro_plus']['price']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Währung</label>
-                            <input type="text" name="pro_plus_currency" value="<?php echo htmlspecialchars($pricing['pro_plus']['currency']); ?>" required maxlength="3">
-                        </div>
-                        <div class="form-group">
-                            <label>Beschreibung</label>
-                            <textarea name="pro_plus_description" rows="3"><?php echo htmlspecialchars($pricing['pro_plus']['description'] ?? ''); ?></textarea>
-                        </div>
-                    </div>
-                    
-                    <!-- ULTIMATE -->
-                    <div class="package new">
-                        <h3>ULTIMATE Paket <span class="badge">NEU</span></h3>
-                        <div class="form-group">
-                            <label>Label</label>
-                            <input type="text" name="ultimate_label" value="<?php echo htmlspecialchars($pricing['ultimate']['label']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Preis</label>
-                            <input type="number" name="ultimate_price" value="<?php echo htmlspecialchars($pricing['ultimate']['price']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Währung</label>
-                            <input type="text" name="ultimate_currency" value="<?php echo htmlspecialchars($pricing['ultimate']['currency']); ?>" required maxlength="3">
-                        </div>
-                        <div class="form-group">
-                            <label>Beschreibung</label>
-                            <textarea name="ultimate_description" rows="3"><?php echo htmlspecialchars($pricing['ultimate']['description'] ?? ''); ?></textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <button type="submit" name="save_pricing">💾 Speichern & Synchronisieren</button>
-            </form>
+                    <button type="submit" name="save_pricing">💾 Speichern & Synchronisieren</button>
+                </form>
+            <?php endif; ?>
             
             <div class="info-box">
                 <h3>💡 API Endpoint</h3>
                 <p>Die Preise werden automatisch über die API bereitgestellt:</p>
-                <p style="margin-top: 10px;"><code><?php echo htmlspecialchars('https://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/api.php?action=get_pricing'); ?></code></p>
+                <p style="margin-top: 10px;"><code><?php echo htmlspecialchars('https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['PHP_SELF']) . '/api.php?action=get_pricing'); ?></code></p>
                 <p style="margin-top: 15px; color: #374151;">Diese URL muss im WordPress-Plugin als "Lizenz-Server URL" eingetragen werden.</p>
             </div>
         </div>
