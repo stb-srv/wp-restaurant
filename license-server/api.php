@@ -1,7 +1,7 @@
 <?php
 /**
  * License Server - Public API Endpoint
- * Version 2.0 - Improved Error Handling
+ * Version 2.1 - Enhanced Security & Input Validation
  */
 
 define('LICENSE_SERVER', true);
@@ -16,8 +16,31 @@ function api_response($data, $status = 200) {
     http_response_code($status);
     header('Content-Type: application/json');
     header('Access-Control-Allow-Origin: *');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
     echo json_encode($data, JSON_PRETTY_PRINT);
     exit;
+}
+
+// Input Sanitization Helper
+function sanitize_license_key($key) {
+    $key = strtoupper(trim($key));
+    // Nur erlaubte Zeichen: A-Z, 0-9, Bindestriche
+    $key = preg_replace('/[^A-Z0-9-]/', '', $key);
+    return $key;
+}
+
+function sanitize_domain($domain) {
+    $domain = strtolower(trim($domain));
+    // Entferne Protokoll falls vorhanden
+    $domain = preg_replace('#^https?://#', '', $domain);
+    // Entferne trailing slash
+    $domain = rtrim($domain, '/');
+    // Validiere Domain-Format
+    if (!filter_var('http://' . $domain, FILTER_VALIDATE_URL)) {
+        return false;
+    }
+    return $domain;
 }
 
 // Datenbank-Config prüfen
@@ -28,7 +51,7 @@ if (!file_exists(__DIR__ . '/db-config.php')) {
     ], 500);
 }
 
-// Includes laden
+// Includes laden in korrekter Reihenfolge
 try {
     if (!file_exists(__DIR__ . '/includes/database.php')) {
         throw new Exception('Database class not found');
@@ -66,13 +89,22 @@ try {
     ], 500);
 }
 
-// Action bestimmen
-$action = $_GET['action'] ?? '';
+// Action bestimmen und validieren
+$action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : '';
 
 if (empty($action)) {
     api_response([
         'success' => false,
-        'error' => 'No action specified. Available: get_pricing, check_license',
+        'error' => 'No action specified. Available: get_pricing, check_license, status',
+    ], 400);
+}
+
+// Whitelist erlaubter Actions
+$allowed_actions = ['get_pricing', 'check_license', 'status', 'debug_licenses'];
+if (!in_array($action, $allowed_actions)) {
+    api_response([
+        'success' => false,
+        'error' => 'Invalid action: ' . htmlspecialchars($action),
     ], 400);
 }
 
@@ -99,8 +131,9 @@ if ($action === 'get_pricing') {
 
 // LIZENZ PRÜFEN
 if ($action === 'check_license') {
-    $key = isset($_GET['key']) ? strtoupper(trim($_GET['key'])) : '';
-    $domain = isset($_GET['domain']) ? trim($_GET['domain']) : '';
+    // Input validieren und sanitizen
+    $key = isset($_GET['key']) ? sanitize_license_key($_GET['key']) : '';
+    $domain = isset($_GET['domain']) ? sanitize_domain($_GET['domain']) : '';
     
     if (empty($key)) {
         api_response([
@@ -110,11 +143,20 @@ if ($action === 'check_license') {
         ], 400);
     }
     
-    if (empty($domain)) {
+    if ($domain === false || empty($domain)) {
         api_response([
             'success' => false,
             'valid' => false,
-            'message' => 'Domain required',
+            'message' => 'Valid domain required',
+        ], 400);
+    }
+    
+    // Lizenzschlüssel-Format validieren
+    if (!preg_match('/^WPR-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}(-[A-Z0-9]{5})?$/', $key)) {
+        api_response([
+            'success' => false,
+            'valid' => false,
+            'message' => 'Invalid license key format',
         ], 400);
     }
     
@@ -123,6 +165,7 @@ if ($action === 'check_license') {
         $license = $db->getLicense($key);
         
         if (!$license) {
+            $db->log('check_license_failed', "Not found: $key for $domain");
             api_response([
                 'success' => false,
                 'valid' => false,
@@ -132,26 +175,28 @@ if ($action === 'check_license') {
         
         // Domain prüfen (wenn gesetzt)
         if (!empty($license['domain']) && $license['domain'] !== '*' && $license['domain'] !== $domain) {
+            $db->log('check_license_failed', "Domain mismatch: $key for $domain (expected: {$license['domain']})");
             api_response([
                 'success' => false,
                 'valid' => false,
-                'message' => 'Domain mismatch. License is for: ' . $license['domain'],
+                'message' => 'Domain mismatch. License is for: ' . htmlspecialchars($license['domain']),
             ]);
         }
         
         // Ablaufdatum prüfen
         if (!empty($license['expires']) && $license['expires'] !== 'lifetime') {
             if (strtotime($license['expires']) < time()) {
+                $db->log('check_license_failed', "Expired: $key on {$license['expires']}");
                 api_response([
                     'success' => false,
                     'valid' => false,
-                    'message' => 'License expired on ' . $license['expires'],
+                    'message' => 'License expired on ' . htmlspecialchars($license['expires']),
                 ]);
             }
         }
         
         // Lizenz ist gültig!
-        $db->log('check_license', "Valid: $key for $domain");
+        $db->log('check_license_success', "Valid: $key for $domain");
         
         api_response([
             'success' => true,
@@ -163,6 +208,7 @@ if ($action === 'check_license') {
         ]);
         
     } catch (Exception $e) {
+        $db->log('check_license_error', "Error: " . $e->getMessage());
         api_response([
             'success' => false,
             'valid' => false,
@@ -176,13 +222,26 @@ if ($action === 'status') {
     api_response([
         'success' => true,
         'status' => 'online',
-        'version' => '2.0',
+        'version' => '2.1',
         'timestamp' => time(),
+        'php_version' => PHP_VERSION,
     ]);
 }
 
 // DEBUG: Alle Lizenzen anzeigen (nur mit Secret!)
-if ($action === 'debug_licenses' && isset($_GET['secret']) && $_GET['secret'] === 'debug123') {
+if ($action === 'debug_licenses') {
+    $secret = isset($_GET['secret']) ? $_GET['secret'] : '';
+    
+    // Secret validieren (sollte aus Umgebungsvariable kommen)
+    $valid_secret = getenv('DEBUG_SECRET') ?: 'debug123';
+    
+    if ($secret !== $valid_secret) {
+        api_response([
+            'success' => false,
+            'error' => 'Unauthorized',
+        ], 403);
+    }
+    
     try {
         $licenses = $db->getAllLicenses();
         
@@ -199,8 +258,8 @@ if ($action === 'debug_licenses' && isset($_GET['secret']) && $_GET['secret'] ==
     }
 }
 
-// Ungültige Action
+// Sollte nie erreicht werden (wegen Whitelist)
 api_response([
     'success' => false,
-    'error' => 'Invalid action: ' . $action . '. Available: get_pricing, check_license, status',
+    'error' => 'Invalid action',
 ], 400);
