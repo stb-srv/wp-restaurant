@@ -1,7 +1,7 @@
 <?php
 /**
  * WP Restaurant Menu - License Management
- * Version 2.1 - Vollständig überarbeitet und funktionsfähig
+ * Version 2.2 - Improved Cache Fallback & Feature Checking
  */
 
 if (!defined('ABSPATH')) {
@@ -93,6 +93,12 @@ class WPR_License {
             return $result;
         }
         
+        // Fallback auf gecachte Daten bei Server-Fehler
+        if ($cached && is_array($cached)) {
+            // Server nicht erreichbar, aber wir haben gültige Cache-Daten
+            return $cached;
+        }
+        
         return self::get_free_license();
     }
     
@@ -110,11 +116,32 @@ class WPR_License {
     }
     
     /**
+     * Feature-Check (generisch)
+     */
+    public static function check_feature($feature_name) {
+        $license = self::get_license_info();
+        return isset($license['features']) && in_array($feature_name, $license['features']);
+    }
+    
+    /**
      * Dark Mode Check
      */
     public static function has_dark_mode() {
-        $license = self::get_license_info();
-        return isset($license['features']) && in_array('dark_mode', $license['features']);
+        return self::check_feature('dark_mode');
+    }
+    
+    /**
+     * Cart Feature Check
+     */
+    public static function has_cart() {
+        return self::check_feature('cart');
+    }
+    
+    /**
+     * Unlimited Items Check
+     */
+    public static function has_unlimited_items() {
+        return self::check_feature('unlimited_items');
     }
     
     /**
@@ -123,8 +150,10 @@ class WPR_License {
     private static function format_license_label($type) {
         $labels = array(
             'free' => 'FREE',
+            'free_plus' => 'FREE+',
             'pro' => 'PRO',
             'pro_plus' => 'PRO+',
+            'ultimate' => 'ULTIMATE',
         );
         
         return isset($labels[$type]) ? $labels[$type] : strtoupper(str_replace('_', '+', $type));
@@ -225,20 +254,28 @@ class WPR_License {
             $license_type = isset($info['type']) ? $info['type'] : 'unknown';
             $type_label = self::format_license_label($license_type);
             $max_items = isset($info['max_items']) ? $info['max_items'] : 0;
-            $has_dark_mode = isset($info['features']) && in_array('dark_mode', $info['features']);
+            $features = isset($info['features']) ? $info['features'] : array();
             
             $message = "✅ {$type_label} Lizenz erfolgreich aktiviert!";
+            $message .= " Bis zu {$max_items} Gerichte";
             
-            if ($license_type === 'free') {
-                $message .= " Bis zu {$max_items} Gerichte verfügbar.";
-            } elseif ($license_type === 'pro') {
-                $message .= " Bis zu {$max_items} Gerichte freigeschaltet.";
-            } elseif ($license_type === 'pro_plus') {
-                $message .= " Bis zu {$max_items} Gerichte";
-                $message .= $has_dark_mode ? " + 🌙 Dark Mode freigeschaltet." : " freigeschaltet.";
-            } else {
-                $message .= " Bis zu {$max_items} Gerichte verfügbar.";
+            // Features anzeigen
+            $feature_list = array();
+            if (in_array('dark_mode', $features)) {
+                $feature_list[] = '🌙 Dark Mode';
             }
+            if (in_array('cart', $features)) {
+                $feature_list[] = '🛒 Warenkorb';
+            }
+            if (in_array('unlimited_items', $features)) {
+                $feature_list[] = '♾️ Unbegrenzte Gerichte';
+            }
+            
+            if (!empty($feature_list)) {
+                $message .= ' + ' . implode(', ', $feature_list);
+            }
+            
+            $message .= ' freigeschaltet.';
             
             return array(
                 'success' => true,
@@ -326,7 +363,7 @@ class WPR_License {
                 $test_data = json_decode($test_body, true);
                 $server_test = array(
                     'success' => isset($test_data['status']) && $test_data['status'] === 'online',
-                    'message' => isset($test_data['status']) ? 'Server online' : 'Server offline',
+                    'message' => isset($test_data['status']) ? 'Server online (v' . ($test_data['version'] ?? '?') . ')' : 'Server offline',
                 );
             }
         }
@@ -349,8 +386,19 @@ class WPR_License {
                     <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px;">
                         <h3 style="margin: 0 0 10px 0; color: #047857;">✅ <?php echo esc_html(self::format_license_label($license_info['type'])); ?> aktiv</h3>
                         <p style="margin: 5px 0;"><strong>Gerichte:</strong> <?php echo esc_html($total_items); ?> / <?php echo esc_html($max_items); ?></p>
-                        <?php if (self::has_dark_mode()) : ?>
-                            <p style="margin: 5px 0;"><strong>Features:</strong> 🌙 Dark Mode</p>
+                        <?php 
+                        $features = isset($license_info['features']) ? $license_info['features'] : array();
+                        if (!empty($features)) :
+                        ?>
+                            <p style="margin: 5px 0;"><strong>Features:</strong> 
+                            <?php 
+                            $feature_names = array();
+                            if (in_array('dark_mode', $features)) $feature_names[] = '🌙 Dark Mode';
+                            if (in_array('cart', $features)) $feature_names[] = '🛒 Warenkorb';
+                            if (in_array('unlimited_items', $features)) $feature_names[] = '♾️ Unbegrenzt';
+                            echo implode(', ', $feature_names);
+                            ?>
+                            </p>
                         <?php endif; ?>
                     </div>
                 <?php else : ?>
