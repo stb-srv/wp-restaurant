@@ -1,7 +1,7 @@
 <?php
 /**
  * License Server - Database Manager
- * Version 2.0 - Sauber mit 5 Preismodellen
+ * Version 2.1 - Performance Optimized with Additional Indices
  */
 
 if (!defined('LICENSE_SERVER')) {
@@ -93,7 +93,7 @@ class LicenseDB {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             
-            // Lizenzen
+            // Lizenzen mit Performance-optimierten Indizes
             $this->conn->exec("
                 CREATE TABLE IF NOT EXISTS licenses (
                     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -106,7 +106,10 @@ class LicenseDB {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     INDEX idx_key (license_key),
-                    INDEX idx_type (type)
+                    INDEX idx_type (type),
+                    INDEX idx_domain (domain),
+                    INDEX idx_expires (expires),
+                    INDEX idx_created (created_at)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             
@@ -121,7 +124,9 @@ class LicenseDB {
                     max_items INT DEFAULT 20,
                     features TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_package_type (package_type),
+                    INDEX idx_price (price)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             
@@ -134,7 +139,8 @@ class LicenseDB {
                     ip_address VARCHAR(50),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_type (log_type),
-                    INDEX idx_created (created_at)
+                    INDEX idx_created (created_at),
+                    INDEX idx_ip (ip_address)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             
@@ -337,8 +343,6 @@ class LicenseDB {
         }
     }
     
-    // [Rest der Methoden bleiben gleich - getLicense, saveLicense, etc.]
-    
     public function getAllLicenses() {
         if (!$this->conn) return array();
         
@@ -456,6 +460,36 @@ class LicenseDB {
             return $stmt->execute([$days]);
         } catch (PDOException $e) {
             return false;
+        }
+    }
+    
+    /**
+     * Get database statistics
+     */
+    public function getStats() {
+        if (!$this->conn) return null;
+        
+        try {
+            $stats = array();
+            
+            // Count licenses
+            $stmt = $this->conn->query("SELECT COUNT(*) as total FROM licenses");
+            $stats['total_licenses'] = $stmt->fetch()['total'];
+            
+            // Count by type
+            $stmt = $this->conn->query("SELECT type, COUNT(*) as count FROM licenses GROUP BY type");
+            $stats['by_type'] = array();
+            while ($row = $stmt->fetch()) {
+                $stats['by_type'][$row['type']] = $row['count'];
+            }
+            
+            // Recent logs
+            $stmt = $this->conn->query("SELECT COUNT(*) as total FROM logs WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            $stats['logs_last_7_days'] = $stmt->fetch()['total'];
+            
+            return $stats;
+        } catch (PDOException $e) {
+            return null;
         }
     }
 }
