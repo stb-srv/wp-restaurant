@@ -1,7 +1,7 @@
 <?php
 /**
  * License Server - Database Manager
- * Version 2.1 - Performance Optimized with Additional Indices
+ * Version 2.2 - Dynamic Pricing Descriptions
  */
 
 if (!defined('LICENSE_SERVER')) {
@@ -113,7 +113,7 @@ class LicenseDB {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             
-            // Pricing
+            // Pricing mit Beschreibung
             $this->conn->exec("
                 CREATE TABLE IF NOT EXISTS pricing (
                     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -121,6 +121,7 @@ class LicenseDB {
                     price INT DEFAULT 0,
                     currency VARCHAR(10) DEFAULT '€',
                     label VARCHAR(100),
+                    description TEXT,
                     max_items INT DEFAULT 20,
                     features TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -129,6 +130,16 @@ class LicenseDB {
                     INDEX idx_price (price)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+            
+            // Check if description column exists, if not add it
+            try {
+                $stmt = $this->conn->query("SHOW COLUMNS FROM pricing LIKE 'description'");
+                if ($stmt->rowCount() == 0) {
+                    $this->conn->exec("ALTER TABLE pricing ADD COLUMN description TEXT AFTER label");
+                }
+            } catch (PDOException $e) {
+                // Column might already exist
+            }
             
             // Logs
             $this->conn->exec("
@@ -174,6 +185,7 @@ class LicenseDB {
                     'price' => 0,
                     'currency' => '€',
                     'label' => 'FREE',
+                    'description' => 'Perfekt zum Testen und für kleine Restaurants',
                     'max_items' => 20,
                     'features' => json_encode(array()),
                 ),
@@ -182,6 +194,7 @@ class LicenseDB {
                     'price' => 15,
                     'currency' => '€',
                     'label' => 'FREE+',
+                    'description' => 'Erweiterte Kapazität für mittelgroße Menüs',
                     'max_items' => 60,
                     'features' => json_encode(array()),
                 ),
@@ -190,6 +203,7 @@ class LicenseDB {
                     'price' => 29,
                     'currency' => '€',
                     'label' => 'PRO',
+                    'description' => 'Professionelle Lösung für umfangreiche Speisekarten',
                     'max_items' => 200,
                     'features' => json_encode(array()),
                 ),
@@ -198,6 +212,7 @@ class LicenseDB {
                     'price' => 49,
                     'currency' => '€',
                     'label' => 'PRO+',
+                    'description' => 'PRO + Dark Mode + Warenkorb-System',
                     'max_items' => 200,
                     'features' => json_encode(array('dark_mode', 'cart')),
                 ),
@@ -206,14 +221,15 @@ class LicenseDB {
                     'price' => 79,
                     'currency' => '€',
                     'label' => 'ULTIMATE',
+                    'description' => 'Alle Features + unbegrenzte Gerichte',
                     'max_items' => 900,
                     'features' => json_encode(array('dark_mode', 'cart', 'unlimited_items')),
                 ),
             );
             
             $stmt = $this->conn->prepare("
-                INSERT INTO pricing (package_type, price, currency, label, max_items, features) 
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO pricing (package_type, price, currency, label, description, max_items, features) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             
             foreach ($defaults as $pricing) {
@@ -222,6 +238,7 @@ class LicenseDB {
                     $pricing['price'],
                     $pricing['currency'],
                     $pricing['label'],
+                    $pricing['description'],
                     $pricing['max_items'],
                     $pricing['features'],
                 ]);
@@ -248,6 +265,7 @@ class LicenseDB {
                     'price' => (int)$row['price'],
                     'currency' => $row['currency'],
                     'label' => $row['label'],
+                    'description' => $row['description'] ?? '',
                     'max_items' => (int)$row['max_items'],
                     'features' => json_decode($row['features'], true) ?: array(),
                 );
@@ -273,6 +291,7 @@ class LicenseDB {
                 'price' => 0,
                 'currency' => '€',
                 'label' => 'FREE',
+                'description' => 'Perfekt zum Testen und für kleine Restaurants',
                 'max_items' => 20,
                 'features' => array(),
             ),
@@ -280,6 +299,7 @@ class LicenseDB {
                 'price' => 15,
                 'currency' => '€',
                 'label' => 'FREE+',
+                'description' => 'Erweiterte Kapazität für mittelgroße Menüs',
                 'max_items' => 60,
                 'features' => array(),
             ),
@@ -287,6 +307,7 @@ class LicenseDB {
                 'price' => 29,
                 'currency' => '€',
                 'label' => 'PRO',
+                'description' => 'Professionelle Lösung für umfangreiche Speisekarten',
                 'max_items' => 200,
                 'features' => array(),
             ),
@@ -294,6 +315,7 @@ class LicenseDB {
                 'price' => 49,
                 'currency' => '€',
                 'label' => 'PRO+',
+                'description' => 'PRO + Dark Mode + Warenkorb-System',
                 'max_items' => 200,
                 'features' => array('dark_mode', 'cart'),
             ),
@@ -301,6 +323,7 @@ class LicenseDB {
                 'price' => 79,
                 'currency' => '€',
                 'label' => 'ULTIMATE',
+                'description' => 'Alle Features + unbegrenzte Gerichte',
                 'max_items' => 900,
                 'features' => array('dark_mode', 'cart', 'unlimited_items'),
             ),
@@ -316,12 +339,13 @@ class LicenseDB {
         try {
             foreach ($pricing as $type => $data) {
                 $stmt = $this->conn->prepare("
-                    INSERT INTO pricing (package_type, price, currency, label, max_items, features) 
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO pricing (package_type, price, currency, label, description, max_items, features) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE 
                         price = VALUES(price),
                         currency = VALUES(currency),
                         label = VALUES(label),
+                        description = VALUES(description),
                         max_items = VALUES(max_items),
                         features = VALUES(features)
                 ");
@@ -331,6 +355,7 @@ class LicenseDB {
                     $data['price'],
                     $data['currency'],
                     $data['label'],
+                    $data['description'] ?? '',
                     $data['max_items'],
                     json_encode($data['features'] ?? array()),
                 ]);
