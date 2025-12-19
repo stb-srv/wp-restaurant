@@ -1,7 +1,7 @@
 <?php
 /**
  * WP Restaurant Menu - License Management
- * Version 2.2 - Improved Cache Fallback & Feature Checking
+ * Version 2.3 - Dynamic Pricing Overview with Server-managed Descriptions
  */
 
 if (!defined('ABSPATH')) {
@@ -15,22 +15,47 @@ class WPR_License {
         return 'https://license-server.stb-srv.de/license-server/api.php';
     }
     
-    // Fallback Preise
+    // Fallback Preise mit Beschreibungen
     private static $fallback_pricing = array(
         'free' => array(
             'price' => 0,
             'currency' => '€',
             'label' => 'FREE',
+            'description' => 'Perfekt zum Testen und für kleine Restaurants',
+            'max_items' => 20,
+            'features' => array(),
+        ),
+        'free_plus' => array(
+            'price' => 15,
+            'currency' => '€',
+            'label' => 'FREE+',
+            'description' => 'Erweiterte Kapazität für mittelgroße Menüs',
+            'max_items' => 60,
+            'features' => array(),
         ),
         'pro' => array(
             'price' => 29,
             'currency' => '€',
             'label' => 'PRO',
+            'description' => 'Professionelle Lösung für umfangreiche Speisekarten',
+            'max_items' => 200,
+            'features' => array(),
         ),
         'pro_plus' => array(
             'price' => 49,
             'currency' => '€',
             'label' => 'PRO+',
+            'description' => 'PRO + Dark Mode + Warenkorb-System',
+            'max_items' => 200,
+            'features' => array('dark_mode', 'cart'),
+        ),
+        'ultimate' => array(
+            'price' => 79,
+            'currency' => '€',
+            'label' => 'ULTIMATE',
+            'description' => 'Alle Features + unbegrenzte Gerichte',
+            'max_items' => 900,
+            'features' => array('dark_mode', 'cart', 'unlimited_items'),
         ),
     );
     
@@ -95,7 +120,6 @@ class WPR_License {
         
         // Fallback auf gecachte Daten bei Server-Fehler
         if ($cached && is_array($cached)) {
-            // Server nicht erreichbar, aber wir haben gültige Cache-Daten
             return $cached;
         }
         
@@ -163,10 +187,6 @@ class WPR_License {
      * Lizenz-Format validieren
      */
     private static function validate_license_format($key) {
-        // Erlaubte Formate:
-        // WPR-XXXXX-XXXXX-XXXXX (3 Segmente nach WPR)
-        // WPR-XXXXX-XXXXX-XXXXX-XXXXX (4 Segmente nach WPR)
-        
         // 3 Segmente
         if (preg_match('/^WPR-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/', $key)) {
             return true;
@@ -222,7 +242,6 @@ class WPR_License {
             );
         }
         
-        // Format prüfen
         if (!self::validate_license_format($key)) {
             return array(
                 'success' => false,
@@ -230,7 +249,6 @@ class WPR_License {
             );
         }
         
-        // Server prüfen
         $server_url = self::get_server_url();
         if (empty($server_url)) {
             return array(
@@ -239,12 +257,10 @@ class WPR_License {
             );
         }
         
-        // Lizenz speichern
         update_option('wpr_license_key', $key);
         delete_option('wpr_license_data');
         delete_option('wpr_license_last_check');
         
-        // Server-Check
         $info = self::check_license_remote($key);
         
         if ($info && isset($info['valid']) && $info['valid'] === true) {
@@ -259,17 +275,10 @@ class WPR_License {
             $message = "✅ {$type_label} Lizenz erfolgreich aktiviert!";
             $message .= " Bis zu {$max_items} Gerichte";
             
-            // Features anzeigen
             $feature_list = array();
-            if (in_array('dark_mode', $features)) {
-                $feature_list[] = '🌙 Dark Mode';
-            }
-            if (in_array('cart', $features)) {
-                $feature_list[] = '🛒 Warenkorb';
-            }
-            if (in_array('unlimited_items', $features)) {
-                $feature_list[] = '♾️ Unbegrenzte Gerichte';
-            }
+            if (in_array('dark_mode', $features)) $feature_list[] = '🌙 Dark Mode';
+            if (in_array('cart', $features)) $feature_list[] = '🛒 Warenkorb';
+            if (in_array('unlimited_items', $features)) $feature_list[] = '♾️ Unbegrenzt';
             
             if (!empty($feature_list)) {
                 $message .= ' + ' . implode(', ', $feature_list);
@@ -348,7 +357,7 @@ class WPR_License {
         $total_items = $count->publish + $count->draft + $count->pending;
         
         $max_items = $license_info['max_items'];
-        $is_over_limit = $total_items > $max_items;
+        $current_type = $license_info['type'];
         
         // Test-Button für Server-Verbindung
         $server_test = null;
@@ -378,9 +387,9 @@ class WPR_License {
                 </div>
             <?php endif; ?>
             
-            <!-- Status -->
+            <!-- Aktueller Status -->
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                <h2 style="margin-top: 0;">📊 Status</h2>
+                <h2 style="margin-top: 0;">📊 Aktueller Status</h2>
                 
                 <?php if ($license_info['valid']) : ?>
                     <div style="padding: 15px; background: #d1fae5; border-left: 4px solid #10b981; border-radius: 4px;">
@@ -418,11 +427,87 @@ class WPR_License {
                     <form method="post" style="margin: 10px 0 0 0;">
                         <?php wp_nonce_field('wpr_license_action', 'wpr_license_nonce'); ?>
                         <button type="submit" name="wpr_test_server" class="button button-small">🔍 Server testen</button>
+                        <button type="submit" name="wpr_refresh_pricing" class="button button-small">🔄 Preise aktualisieren</button>
                     </form>
                 </div>
             </div>
             
-            <!-- Aktivierung -->
+            <!-- Verfügbare Lizenzen -->
+            <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <h2 style="margin-top: 0;">💳 Verfügbare Lizenzen</h2>
+                <p style="margin-bottom: 20px; color: #6b7280;">Wählen Sie das passende Modell für Ihr Restaurant:</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <?php foreach ($pricing as $type => $package) : 
+                        $is_current = ($type === $current_type);
+                        $border_color = $is_current ? '#10b981' : '#e5e7eb';
+                        $bg_color = $is_current ? '#f0fdf4' : '#ffffff';
+                    ?>
+                        <div style="border: 2px solid <?php echo $border_color; ?>; border-radius: 8px; padding: 20px; background: <?php echo $bg_color; ?>; position: relative;">
+                            <?php if ($is_current) : ?>
+                                <div style="position: absolute; top: 10px; right: 10px; background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75em; font-weight: bold;">
+                                    AKTIV
+                                </div>
+                            <?php endif; ?>
+                            
+                            <h3 style="margin: 0 0 10px 0; font-size: 1.5em; color: #111827;">
+                                <?php echo esc_html($package['label']); ?>
+                            </h3>
+                            
+                            <div style="margin: 15px 0;">
+                                <span style="font-size: 2.5em; font-weight: bold; color: #111827;">
+                                    <?php 
+                                    if ($package['price'] == 0) {
+                                        echo 'Kostenlos';
+                                    } else {
+                                        echo esc_html($package['price'] . ' ' . $package['currency']);
+                                    }
+                                    ?>
+                                </span>
+                                <?php if ($package['price'] > 0) : ?>
+                                    <span style="font-size: 0.9em; color: #6b7280;"> / einmalig</span>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <p style="color: #6b7280; font-size: 0.95em; min-height: 40px; margin: 10px 0;">
+                                <?php echo esc_html($package['description'] ?? ''); ?>
+                            </p>
+                            
+                            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 15px 0;">
+                            
+                            <ul style="list-style: none; padding: 0; margin: 0;">
+                                <li style="padding: 8px 0; display: flex; align-items: center; gap: 8px;">
+                                    <span style="color: #10b981; font-size: 1.2em;">✓</span>
+                                    <span><strong><?php echo esc_html($package['max_items']); ?> Gerichte</strong></span>
+                                </li>
+                                
+                                <?php if (in_array('dark_mode', $package['features'])) : ?>
+                                    <li style="padding: 8px 0; display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #10b981; font-size: 1.2em;">✓</span>
+                                        <span>🌙 Dark Mode</span>
+                                    </li>
+                                <?php endif; ?>
+                                
+                                <?php if (in_array('cart', $package['features'])) : ?>
+                                    <li style="padding: 8px 0; display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #10b981; font-size: 1.2em;">✓</span>
+                                        <span>🛒 Warenkorb-System</span>
+                                    </li>
+                                <?php endif; ?>
+                                
+                                <?php if (in_array('unlimited_items', $package['features'])) : ?>
+                                    <li style="padding: 8px 0; display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #10b981; font-size: 1.2em;">✓</span>
+                                        <span>♾️ Unbegrenzte Gerichte</span>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            
+            <!-- Lizenz aktivieren -->
             <div style="background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <h2 style="margin-top: 0;">🔐 Lizenz aktivieren</h2>
                 
@@ -440,6 +525,7 @@ class WPR_License {
                                     value="<?php echo esc_attr($current_key); ?>" 
                                     class="regular-text"
                                     placeholder="WPR-XXXXX-XXXXX-XXXXX"
+                                    style="font-family: monospace; font-size: 1.1em;"
                                 />
                                 <p class="description">Format: WPR-XXXXX-XXXXX-XXXXX (oder mit 4 Segmenten)</p>
                             </td>
@@ -448,22 +534,29 @@ class WPR_License {
                     
                     <p class="submit">
                         <button type="submit" name="wpr_activate_license" class="button button-primary button-large">
-                            🔑 Aktivieren
+                            🔑 Lizenz aktivieren
                         </button>
                         
                         <?php if (!empty($current_key)) : ?>
                             <button type="submit" name="wpr_deactivate_license" class="button button-secondary">
-                                Deaktivieren
+                                Lizenz deaktivieren
                             </button>
                         <?php endif; ?>
-                        
-                        <button type="submit" name="wpr_refresh_pricing" class="button">
-                            🔄 Cache löschen
-                        </button>
                     </p>
                 </form>
             </div>
         </div>
+        
+        <style>
+        .wrap h3 {
+            font-weight: 600;
+        }
+        @media (max-width: 768px) {
+            .wrap > div[style*="grid"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        </style>
         <?php
     }
 }
